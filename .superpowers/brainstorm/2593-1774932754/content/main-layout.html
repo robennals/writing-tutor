@@ -1,0 +1,133 @@
+<h2>Main Writing Screen Layout</h2>
+<p class="subtitle">This is the core screen where Owen writes and interacts with the tutor</p>
+
+<div class="mockup">
+  <div class="mockup-header">Writing Tutor - Main View</div>
+  <div class="mockup-body" style="padding: 0; background: #1a1a1a; color: #e0e0e0; font-family: system-ui, sans-serif;">
+
+    <!-- Top Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #333; background: #222;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 20px;">&#9997;</span>
+        <span style="font-weight: 600; font-size: 15px;">Writing Tutor</span>
+        <span style="color: #888; font-size: 13px;">|</span>
+        <span style="font-size: 13px; color: #aaa;">Owen's Workspace</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="background: #2a2a3a; padding: 4px 12px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <span style="color: #fbbf24;">&#9733;</span>
+          <span>Opinion: Level 3</span>
+          <span style="color: #666;">&#8226;</span>
+          <span style="color: #888;">2/3 essays</span>
+        </div>
+        <div style="width: 28px; height: 28px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">O</div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="display: flex; height: 480px;">
+
+      <!-- Left: Text Editor -->
+      <div style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333;">
+
+        <!-- Essay Title -->
+        <div style="padding: 16px 20px 8px; border-bottom: 1px solid #2a2a2a;">
+          <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">Essay Title</div>
+          <div style="font-size: 18px; font-weight: 500; color: #e0e0e0;">Why Robots Are Really Cool</div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <span style="font-size: 11px; background: #2a2a3a; padding: 2px 8px; border-radius: 10px; color: #93c5fd;">Opinion</span>
+            <span style="font-size: 11px; background: #2a2a3a; padding: 2px 8px; border-radius: 10px; color: #86efac;">Step 4: Draft</span>
+          </div>
+        </div>
+
+        <!-- Editor Area -->
+        <div style="flex: 1; padding: 20px; font-size: 15px; line-height: 1.8; color: #d4d4d4; background: #1e1e1e; overflow-y: auto;">
+          <p style="margin: 0 0 16px;">I think robots are really cool because they can do lots of things. Robots can build cars in factorys. They can also go to space where people cant go.</p>
+          <p style="margin: 0 0 16px;">My favourite robot is the Mars rover because it drives around on another planet and takes pictures. That is amazing.</p>
+          <p style="margin: 0; color: #666;">|</p>
+        </div>
+
+        <!-- Editor Toolbar -->
+        <div style="padding: 10px 20px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px;">
+            <button style="background: #2a2a3a; border: 1px solid #444; color: #ccc; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">&#128264; Hear My Essay</button>
+          </div>
+          <div style="font-size: 11px; color: #666;">42 words</div>
+        </div>
+      </div>
+
+      <!-- Right: Tutor Panel -->
+      <div style="width: 340px; display: flex; flex-direction: column; background: #1a1a2e;">
+
+        <!-- Tutor Header -->
+        <div style="padding: 12px 16px; border-bottom: 1px solid #2a2a3a; display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">&#129302;</div>
+          <div>
+            <div style="font-size: 14px; font-weight: 500;">Writing Buddy</div>
+            <div style="font-size: 11px; color: #888;">Helping with: Detail Adding</div>
+          </div>
+        </div>
+
+        <!-- Tutor Messages -->
+        <div style="flex: 1; overflow-y: auto; padding: 16px;">
+
+          <!-- Step Progress -->
+          <div style="display: flex; gap: 4px; margin-bottom: 16px;">
+            <div style="flex: 1; height: 4px; background: #6366f1; border-radius: 2px;" title="Topic"></div>
+            <div style="flex: 1; height: 4px; background: #6366f1; border-radius: 2px;" title="Brainstorm"></div>
+            <div style="flex: 1; height: 4px; background: #6366f1; border-radius: 2px;" title="Organize"></div>
+            <div style="flex: 1; height: 4px; background: #fbbf24; border-radius: 2px;" title="Draft"></div>
+            <div style="flex: 1; height: 4px; background: #333; border-radius: 2px;" title="Review"></div>
+            <div style="flex: 1; height: 4px; background: #333; border-radius: 2px;" title="Revise"></div>
+            <div style="flex: 1; height: 4px; background: #333; border-radius: 2px;" title="Done"></div>
+          </div>
+
+          <!-- Tutor Message -->
+          <div style="background: #252540; border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+            <p style="margin: 0 0 10px; font-size: 14px; line-height: 1.6;">Great start! I love that you picked robots - and the Mars rover is such a cool example! &#127775;</p>
+            <p style="margin: 0; font-size: 14px; line-height: 1.6;">You said robots can build cars in factories. Can you tell me <strong>what that looks like</strong>? Like, what do the robot arms actually do?</p>
+          </div>
+
+          <!-- Tutor Tip -->
+          <div style="background: #1a2a1a; border: 1px solid #2a3a2a; border-radius: 12px; padding: 14px; margin-bottom: 12px;">
+            <div style="font-size: 11px; color: #86efac; margin-bottom: 6px; font-weight: 500;">&#128161; TIP: Adding Details</div>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #ccc;">If I was writing about my cat, instead of "my cat is fluffy", I might say "my cat has long orange fur that sticks up like a lion's mane." See how the details help you picture it?</p>
+          </div>
+
+          <!-- Hear Button -->
+          <button style="background: #2a2a3a; border: 1px solid #444; color: #ccc; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; width: 100%;">&#128264; Hear this advice</button>
+        </div>
+
+        <!-- Owen's Response Area -->
+        <div style="padding: 12px 16px; border-top: 1px solid #2a2a3a;">
+          <div style="display: flex; gap: 8px;">
+            <input style="flex: 1; background: #252540; border: 1px solid #3a3a5a; color: #ccc; padding: 8px 12px; border-radius: 8px; font-size: 13px;" placeholder="Ask the tutor a question..." />
+            <button style="background: #6366f1; border: none; color: white; padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;">Send</button>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button style="background: #252540; border: 1px solid #3a3a5a; color: #aaa; padding: 4px 10px; border-radius: 14px; font-size: 11px; cursor: pointer;">I'm done writing</button>
+            <button style="background: #252540; border: 1px solid #3a3a5a; color: #aaa; padding: 4px 10px; border-radius: 14px; font-size: 11px; cursor: pointer;">I need help</button>
+            <button style="background: #252540; border: 1px solid #3a3a5a; color: #aaa; padding: 4px 10px; border-radius: 14px; font-size: 11px; cursor: pointer;">What's next?</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 24px;">
+  <h3>Key Design Decisions</h3>
+  <ul style="line-height: 1.8; color: #ccc;">
+    <li><strong>Side-by-side layout</strong> - Editor left, tutor right. Owen can write and see guidance simultaneously.</li>
+    <li><strong>Step progress bar</strong> - Shows where Owen is in the writing process (topic &rarr; brainstorm &rarr; organize &rarr; draft &rarr; review &rarr; revise &rarr; done)</li>
+    <li><strong>Quick action buttons</strong> - "I'm done writing", "I need help", "What's next?" so Owen doesn't always have to type</li>
+    <li><strong>Tips in green boxes</strong> - Examples on <em>different topics</em> so the tutor never writes Owen's essay for him</li>
+    <li><strong>Warm dark theme</strong> - Easier on the eyes, cream-on-dark-gray (not pure black/white) for dyslexia friendliness</li>
+    <li><strong>Word count</strong> - Gentle metric, not a target</li>
+    <li><strong>Text-to-speech buttons</strong> - On both the essay and tutor messages</li>
+  </ul>
+</div>
+
+<div style="margin-top: 16px; padding: 16px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 12px;">
+  <p style="margin: 0; font-size: 14px; color: #c7c7ff;"><strong>Note:</strong> The actual app will use a proper dyslexia-friendly font with generous line spacing (1.8+). Colors shown here are approximate - the final theme will use warm grays and cream tones to reduce eye strain.</p>
+</div>

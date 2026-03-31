@@ -1,0 +1,7 @@
+{"type":"server-started","port":53739,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:53739","screen_dir":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content","state_dir":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/state"}
+{"type":"screen-added","file":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content/main-layout.html"}
+{"type":"screen-added","file":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content/main-layout-v2.html"}
+{"type":"screen-added","file":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content/home-screen.html"}
+{"type":"screen-added","file":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content/level-up-and-parent.html"}
+{"type":"screen-added","file":"/Users/robennals/repos/writing-tutor/main/.superpowers/brainstorm/2593-1774932754/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}
