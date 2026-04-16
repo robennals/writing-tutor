@@ -2,12 +2,12 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { initializeDatabase } from "@/lib/db-schema";
 import { getSkillProgress, getEssays, getSettings } from "@/lib/queries";
-import { HomePage } from "@/components/home-page";
+import { ParentDashboard } from "@/components/parent-dashboard";
 
-export default async function Home() {
+export default async function ParentPage() {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (session.role === "parent") redirect("/parent");
+  if (session.role !== "parent") redirect("/");
 
   await initializeDatabase();
   const [skillProgress, essays, settings] = await Promise.all([
@@ -17,8 +17,7 @@ export default async function Home() {
   ]);
 
   return (
-    <HomePage
-      name={session.name}
+    <ParentDashboard
       skillProgress={skillProgress}
       essays={essays}
       settings={settings}

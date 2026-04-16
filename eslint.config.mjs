@@ -13,6 +13,21 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Tiptap's useEditor throws an SSR error at runtime unless you pass
+      // `immediatelyRender: false`. Catch this in lint instead of at runtime.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.name='useEditor'] > ObjectExpression:not(:has(Property[key.name='immediatelyRender']))",
+          message:
+            "useEditor must include `immediatelyRender: false` to avoid SSR hydration errors in Next.js.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
