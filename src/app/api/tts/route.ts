@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
-const MAX_CHARS = 6000;
+// OpenAI's /v1/audio/speech caps `input` at 4096 characters.
+const MAX_CHARS = 4096;
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     "https://api.openai.com/v1/audio/speech",
     {
       method: "POST",
+      signal: req.signal,
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
