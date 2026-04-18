@@ -41,8 +41,22 @@ function toPlain<T>(row: unknown): T {
 }
 
 export async function getSkillProgress(): Promise<SkillProgress[]> {
+  // essays_completed_at_level is derived from the essays table (the source of
+  // truth), not a stored counter — makes completion idempotent and heals any
+  // drift between the two tables.
   const result = await db.execute(
-    "SELECT * FROM skill_progress WHERE user_role = 'child'"
+    `SELECT sp.writing_type,
+            sp.current_level,
+            sp.level_earned_at,
+            COALESCE(e.c, 0) AS essays_completed_at_level
+     FROM skill_progress sp
+     LEFT JOIN (
+       SELECT writing_type, level, COUNT(*) AS c
+       FROM essays
+       WHERE status = 'completed'
+       GROUP BY writing_type, level
+     ) e ON e.writing_type = sp.writing_type AND e.level = sp.current_level
+     WHERE sp.user_role = 'child'`
   );
   return result.rows.map((r) => toPlain<SkillProgress>(r));
 }
@@ -144,32 +158,66 @@ export async function updateSetting(key: string, value: string) {
   });
 }
 
-export async function incrementSkillProgress(
+/**
+ * Atomically flips an essay from in-progress to completed. Returns true if
+ * THIS call performed the transition. Used to ensure skill progress is only
+ * incremented once even if the client double-submits the completion request.
+ */
+export async function completeEssayIfInProgress(id: number): Promise<boolean> {
+  const result = await db.execute({
+    sql: `UPDATE essays
+          SET status = 'completed',
+              current_step = 'complete',
+              completed_at = datetime('now'),
+              updated_at = datetime('now')
+          WHERE id = ? AND status != 'completed'`,
+    args: [id],
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Idempotently recomputes the child's current level for a writing type from
+ * the essays table (the source of truth). Returns whether the stored level
+ * changed and the new level. Safe to call multiple times — counting essays
+ * produces the same result regardless of how many times it runs.
+ */
+export async function recomputeSkillLevel(
   writingType: WritingType
 ): Promise<{ leveledUp: boolean; newLevel: number }> {
-  const result = await db.execute({
-    sql: "SELECT * FROM skill_progress WHERE user_role = 'child' AND writing_type = ?",
+  const stored = await db.execute({
+    sql: "SELECT current_level FROM skill_progress WHERE user_role = 'child' AND writing_type = ?",
     args: [writingType],
   });
-  if (!result.rows[0]) return { leveledUp: false, newLevel: 1 };
-  const progress = toPlain<SkillProgress>(result.rows[0]);
+  if (!stored.rows[0]) return { leveledUp: false, newLevel: 1 };
+  const oldLevel = Number(
+    (stored.rows[0] as unknown as { current_level: number }).current_level
+  );
 
-  const { getLevel } = await import("./levels");
-  const levelDef = getLevel(progress.current_level);
-  const newCount = progress.essays_completed_at_level + 1;
-
-  if (newCount >= levelDef.essaysToPass && progress.current_level < 10) {
-    // Level up!
-    await db.execute({
-      sql: "UPDATE skill_progress SET current_level = ?, essays_completed_at_level = 0, level_earned_at = datetime('now') WHERE user_role = 'child' AND writing_type = ?",
-      args: [progress.current_level + 1, writingType],
-    });
-    return { leveledUp: true, newLevel: progress.current_level + 1 };
-  } else {
-    await db.execute({
-      sql: "UPDATE skill_progress SET essays_completed_at_level = ? WHERE user_role = 'child' AND writing_type = ?",
-      args: [newCount, writingType],
-    });
-    return { leveledUp: false, newLevel: progress.current_level };
+  const countsResult = await db.execute({
+    sql: "SELECT level, COUNT(*) AS c FROM essays WHERE writing_type = ? AND status = 'completed' GROUP BY level",
+    args: [writingType],
+  });
+  const countByLevel = new Map<number, number>();
+  for (const row of countsResult.rows) {
+    const r = row as unknown as { level: number; c: number };
+    countByLevel.set(Number(r.level), Number(r.c));
   }
+
+  const { LEVELS } = await import("./levels");
+  let newLevel = 1;
+  while (newLevel < LEVELS.length) {
+    const needed = LEVELS[newLevel - 1].essaysToPass;
+    const done = countByLevel.get(newLevel) ?? 0;
+    if (done < needed) break;
+    newLevel += 1;
+  }
+
+  if (newLevel !== oldLevel) {
+    await db.execute({
+      sql: "UPDATE skill_progress SET current_level = ?, level_earned_at = datetime('now') WHERE user_role = 'child' AND writing_type = ?",
+      args: [newLevel, writingType],
+    });
+  }
+  return { leveledUp: newLevel > oldLevel, newLevel };
 }

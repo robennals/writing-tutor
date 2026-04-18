@@ -1,6 +1,12 @@
 import { getSession } from "@/lib/auth";
 import { initializeDatabase } from "@/lib/db-schema";
-import { getEssay, updateEssay, getMessages, incrementSkillProgress } from "@/lib/queries";
+import {
+  getEssay,
+  updateEssay,
+  getMessages,
+  recomputeSkillLevel,
+  completeEssayIfInProgress,
+} from "@/lib/queries";
 import type { WritingType } from "@/lib/levels";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -45,15 +51,14 @@ export async function PATCH(
   const essay = await getEssay(Number(id));
   if (!essay) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Handle essay completion
-  if (body.status === "completed" && essay.status !== "completed") {
-    const { leveledUp, newLevel } = await incrementSkillProgress(
+  // Essay completion. Flipping the status is atomic at the DB level (conditional
+  // UPDATE), and the skill level is derived from the essays table by
+  // recomputeSkillLevel — so duplicate submits can't inflate progress.
+  if (body.status === "completed") {
+    await completeEssayIfInProgress(Number(id));
+    const { leveledUp, newLevel } = await recomputeSkillLevel(
       essay.writing_type as WritingType
     );
-    await updateEssay(Number(id), {
-      ...body,
-      completed_at: new Date().toISOString(),
-    });
     return NextResponse.json({ ok: true, leveledUp, newLevel });
   }
 
