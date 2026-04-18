@@ -86,7 +86,7 @@ export function TtsButton({
           };
           sourceBuffer.addEventListener("updateend", onUpdateEnd);
           sourceBuffer.addEventListener("error", onError);
-          sourceBuffer.appendBuffer(chunk.buffer as ArrayBuffer);
+          sourceBuffer.appendBuffer(chunk as BufferSource);
         });
 
       try {
