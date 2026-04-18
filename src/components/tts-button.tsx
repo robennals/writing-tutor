@@ -110,7 +110,7 @@ export function TtsButton({
           const { done, value } = await reader.read();
           if (done) break;
           if (!value) continue;
-          await appendChunk(new Uint8Array(value));
+          await appendChunk(value);
           if (firstChunk) {
             firstChunk = false;
             setStatus("playing");
