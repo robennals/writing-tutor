@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Status = "idle" | "loading" | "playing";
 
+const STREAM_IDLE_TIMEOUT_MS = 15_000;
+
 export function TtsButton({
   text,
   label = "Listen",
@@ -19,12 +21,18 @@ export function TtsButton({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const onEndedRef = useRef<(() => void) | null>(null);
+  const onErrorRef = useRef<(() => void) | null>(null);
 
   const cleanup = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     const audio = audioRef.current;
     if (audio) {
+      if (onEndedRef.current) audio.removeEventListener("ended", onEndedRef.current);
+      if (onErrorRef.current) audio.removeEventListener("error", onErrorRef.current);
+      onEndedRef.current = null;
+      onErrorRef.current = null;
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
@@ -44,49 +52,79 @@ export function TtsButton({
       cleanup();
       return;
     }
+    if (!text.trim()) return;
 
     const mediaSource = new MediaSource();
     const objectUrl = URL.createObjectURL(mediaSource);
     const audio = new Audio(objectUrl);
     const abort = new AbortController();
 
+    const isCurrent = () => abortRef.current === abort;
+    const finish = () => {
+      if (isCurrent()) cleanup();
+    };
+
+    const onEnded = () => finish();
+    const onError = () => {
+      console.error("TTS audio error", audio.error);
+      finish();
+    };
+
     audioRef.current = audio;
     objectUrlRef.current = objectUrl;
     abortRef.current = abort;
+    onEndedRef.current = onEnded;
+    onErrorRef.current = onError;
 
-    audio.addEventListener("ended", cleanup);
-    audio.addEventListener("error", () => {
-      console.error("TTS audio error", audio.error);
-      cleanup();
-    });
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
 
     setStatus("loading");
 
     mediaSource.addEventListener("sourceopen", async () => {
+      if (!isCurrent()) return;
+
       let sourceBuffer: SourceBuffer;
       try {
         sourceBuffer = mediaSource.addSourceBuffer("audio/mpeg");
       } catch (err) {
         console.error("MediaSource addSourceBuffer failed", err);
-        cleanup();
+        finish();
         return;
       }
 
       const appendChunk = (chunk: Uint8Array) =>
         new Promise<void>((resolve, reject) => {
-          const onUpdateEnd = () => {
+          if (abort.signal.aborted) {
+            reject(new DOMException("Aborted", "AbortError"));
+            return;
+          }
+          const detach = () => {
             sourceBuffer.removeEventListener("updateend", onUpdateEnd);
-            sourceBuffer.removeEventListener("error", onError);
+            sourceBuffer.removeEventListener("error", onBufErr);
+            abort.signal.removeEventListener("abort", onAbort);
+          };
+          const onUpdateEnd = () => {
+            detach();
             resolve();
           };
-          const onError = (e: Event) => {
-            sourceBuffer.removeEventListener("updateend", onUpdateEnd);
-            sourceBuffer.removeEventListener("error", onError);
+          const onBufErr = (e: Event) => {
+            detach();
             reject(e);
           };
+          const onAbort = () => {
+            detach();
+            reject(new DOMException("Aborted", "AbortError"));
+          };
           sourceBuffer.addEventListener("updateend", onUpdateEnd);
-          sourceBuffer.addEventListener("error", onError);
-          sourceBuffer.appendBuffer(chunk as BufferSource);
+          sourceBuffer.addEventListener("error", onBufErr);
+          abort.signal.addEventListener("abort", onAbort);
+          try {
+            sourceBuffer.appendBuffer(chunk as BufferSource);
+          } catch (err) {
+            detach();
+            reject(err);
+          }
         });
 
       try {
@@ -97,26 +135,43 @@ export function TtsButton({
           signal: abort.signal,
         });
 
+        if (!isCurrent()) return;
+
         if (!response.ok || !response.body) {
           const detail = await response.json().catch(() => ({}));
           console.error("TTS request failed", response.status, detail);
-          cleanup();
+          finish();
           return;
         }
 
         const reader = response.body.getReader();
         let firstChunk = true;
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          const timeoutId = window.setTimeout(() => {
+            console.error("TTS stream idle timeout");
+            abort.abort();
+          }, STREAM_IDLE_TIMEOUT_MS);
+
+          let readResult: ReadableStreamReadResult<Uint8Array>;
+          try {
+            readResult = await reader.read();
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+          if (!isCurrent()) return;
+          if (readResult.done) break;
+          const value = readResult.value;
           if (!value) continue;
+
           await appendChunk(value);
+          if (!isCurrent()) return;
+
           if (firstChunk) {
             firstChunk = false;
             setStatus("playing");
             void audio.play().catch((err) => {
               console.error("audio.play() rejected", err);
-              cleanup();
+              finish();
             });
           }
         }
@@ -127,18 +182,18 @@ export function TtsButton({
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         console.error("TTS streaming error", err);
-        cleanup();
+        finish();
       }
     });
   }, [text, status, cleanup]);
 
   const icon =
     status === "loading" ? (
-      <Loader2 className="h-4 w-4 animate-spin" />
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
     ) : status === "playing" ? (
-      <VolumeX className="h-4 w-4" />
+      <VolumeX className="h-4 w-4" aria-hidden="true" />
     ) : (
-      <Volume2 className="h-4 w-4" />
+      <Volume2 className="h-4 w-4" aria-hidden="true" />
     );
 
   const buttonLabel =
@@ -149,6 +204,7 @@ export function TtsButton({
       variant="outline"
       size={size}
       onClick={play}
+      disabled={status === "idle" && !text.trim()}
       className="gap-1.5"
       aria-busy={status === "loading"}
     >
