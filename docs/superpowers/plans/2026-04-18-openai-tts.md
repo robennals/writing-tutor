@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, direct `fetch` to `https://api.openai.com/v1/audio/speech` (no `@ai-sdk/openai` dependency needed — the direct API is smaller and exposes the raw stream cleanly). The existing `getSession()` helper (`src/lib/auth.ts`) gates the route to child sessions.
 
+**Package manager:** pnpm (per main). All `npm run …` commands below should be run as `pnpm …` (e.g. `pnpm lint`, `pnpm dev`). For tsc use `pnpm exec tsc --noEmit`.
+
 **Testing pattern:** This codebase has no automated test framework set up (`package.json` has no test script, no jest/vitest/playwright installed). Adding one is outside this plan's scope. Each task that produces runnable behavior ends with an explicit manual-verification step performed in the dev server, following the existing pattern in the repo.
 
 **Spec:** `docs/superpowers/specs/2026-04-18-openai-tts-design.md`
