@@ -266,20 +266,27 @@ export function WritingScreen({
     sendMessage({ text: "Can you help me plan my outline?" });
   }, [sendMessage]);
 
+  const completingRef = useRef(false);
   const handleComplete = useCallback(async () => {
-    const res = await fetch(`/api/essays/${essay.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "completed", current_step: "complete" }),
-    });
-    const data = await res.json();
-    if (data.leveledUp) {
-      router.push(
-        `/essays/${essay.id}/level-up?newLevel=${data.newLevel}&type=${essay.writing_type}`
-      );
-    } else {
-      setCurrentStep("complete");
-      setEssay({ ...essay, status: "completed" });
+    if (completingRef.current) return;
+    completingRef.current = true;
+    try {
+      const res = await fetch(`/api/essays/${essay.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed", current_step: "complete" }),
+      });
+      const data = await res.json();
+      if (data.leveledUp) {
+        router.push(
+          `/essays/${essay.id}/level-up?newLevel=${data.newLevel}&type=${essay.writing_type}`
+        );
+      } else {
+        setCurrentStep("complete");
+        setEssay({ ...essay, status: "completed" });
+      }
+    } finally {
+      completingRef.current = false;
     }
   }, [essay, router]);
 

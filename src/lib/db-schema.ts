@@ -1,4 +1,6 @@
 import db from "./db";
+import { recomputeSkillLevel } from "./queries";
+import { WRITING_TYPES } from "./levels";
 
 export async function initializeDatabase() {
   await db.batch([
@@ -89,5 +91,12 @@ export async function initializeDatabase() {
       sql: `INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`,
       args: [key, value],
     });
+  }
+
+  // Heal any drift: an earlier bug could inflate current_level past what the
+  // completed essays justify. recomputeSkillLevel re-derives it from the
+  // essays table, so the stored value snaps back to the truth.
+  for (const type of WRITING_TYPES) {
+    await recomputeSkillLevel(type.id);
   }
 }
