@@ -19,21 +19,27 @@ export function NewEssayDialog({
   open,
   onOpenChange,
   skillProgress,
+  initialType,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   skillProgress: SkillProgress[];
+  initialType?: WritingType;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<"type" | "topic">("type");
-  const [selectedType, setSelectedType] = useState<WritingType | null>(null);
+  const [step, setStep] = useState<"type" | "topic">(
+    initialType ? "topic" : "type"
+  );
+  const [selectedType, setSelectedType] = useState<WritingType | null>(
+    initialType ?? null
+  );
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
 
   function handleClose(open: boolean) {
     if (!open) {
-      setStep("type");
-      setSelectedType(null);
+      setStep(initialType ? "topic" : "type");
+      setSelectedType(initialType ?? null);
       setTitle("");
     }
     onOpenChange(open);

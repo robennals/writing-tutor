@@ -155,6 +155,45 @@ describe("NewEssayDialog", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("starts at the topic step when initialType is provided (skips type picker)", () => {
+    render(
+      <NewEssayDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        skillProgress={progress}
+        initialType="creative"
+      />
+    );
+    expect(screen.getByText("What do you want to write about?")).toBeDefined();
+    expect(screen.queryByText("What kind of writing?")).toBeNull();
+  });
+
+  it("creates an essay with the initialType when no picker step is shown", async () => {
+    render(
+      <NewEssayDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        skillProgress={progress}
+        initialType="informational"
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Why Robots/), {
+      target: { value: "How birds fly" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Start Writing/ }));
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/essays",
+        expect.objectContaining({
+          body: JSON.stringify({
+            title: "How birds fly",
+            writingType: "informational",
+          }),
+        })
+      )
+    );
+  });
+
   it("resets its internal step/title/type state when the dialog is closed via onOpenChange(false)", () => {
     const onOpenChange = vi.fn();
     const { rerender } = render(
