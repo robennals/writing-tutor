@@ -24,6 +24,9 @@ export function HomePage({
 }) {
   const router = useRouter();
   const [showNewEssay, setShowNewEssay] = useState(false);
+  const [newEssayType, setNewEssayType] = useState<WritingType | undefined>(
+    undefined
+  );
   const [levelInfoType, setLevelInfoType] = useState<WritingType | null>(null);
 
   return (
@@ -63,7 +66,10 @@ export function HomePage({
           <Button
             size="lg"
             className="gap-2 shadow-lg shadow-primary/20"
-            onClick={() => setShowNewEssay(true)}
+            onClick={() => {
+              setNewEssayType(undefined);
+              setShowNewEssay(true);
+            }}
           >
             <Plus className="h-4 w-4" />
             New Essay
@@ -90,14 +96,24 @@ export function HomePage({
                 <Card
                   key={type.id}
                   className="bg-card hover:bg-accent/40 transition-colors cursor-pointer"
-                  onClick={() => setLevelInfoType(type.id)}
+                  onClick={() => {
+                    setNewEssayType(type.id);
+                    setShowNewEssay(true);
+                  }}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-sm font-medium">
                         {type.icon} {type.name}
                       </span>
-                      <Badge variant="outline" className={type.color}>
+                      <Badge
+                        variant="outline"
+                        className={`${type.color} cursor-pointer hover:bg-accent/60`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLevelInfoType(type.id);
+                        }}
+                      >
                         Level {level}
                       </Badge>
                     </div>
@@ -172,9 +188,11 @@ export function HomePage({
       </main>
 
       <NewEssayDialog
+        key={newEssayType ?? "none"}
         open={showNewEssay}
         onOpenChange={setShowNewEssay}
         skillProgress={skillProgress}
+        initialType={newEssayType}
       />
 
       {levelInfoType && (

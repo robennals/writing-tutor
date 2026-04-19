@@ -68,7 +68,7 @@ export function WritingScreen({
   isParentView: boolean;
 }) {
   const router = useRouter();
-  const [essay, setEssay] = useState(initialEssay);
+  const [essay] = useState(initialEssay);
   const [draftContent, setDraftContent] = useState(initialEssay.content);
   const [draftText, setDraftText] = useState("");
   const [brainstormNotes, setBrainstormNotes] = useState(
@@ -282,13 +282,12 @@ export function WritingScreen({
           `/essays/${essay.id}/level-up?newLevel=${data.newLevel}&type=${essay.writing_type}`
         );
       } else {
-        setCurrentStep("complete");
-        setEssay({ ...essay, status: "completed" });
+        router.push(isParentView ? "/parent" : "/");
       }
     } finally {
       completingRef.current = false;
     }
-  }, [essay, router]);
+  }, [essay, router, isParentView]);
 
   const handleSendChat = useCallback(
     (text: string) => {
