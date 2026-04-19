@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { UIMessage } from "@ai-sdk/react";
-import { hasMarkEssayReady, pickActiveTab } from "./chat-helpers";
+import {
+  getMarkEssayReadyReason,
+  hasMarkEssayReady,
+  pickActiveTab,
+} from "./chat-helpers";
 import type { Tab } from "./levels";
 
 describe("hasMarkEssayReady", () => {
@@ -49,6 +53,86 @@ describe("hasMarkEssayReady", () => {
 
   it("returns false when the message is undefined", () => {
     expect(hasMarkEssayReady(undefined)).toBe(false);
+  });
+});
+
+describe("getMarkEssayReadyReason", () => {
+  it("returns the reason string when the tool was called with one", () => {
+    const msg = {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-markEssayReady",
+          toolCallId: "tc_1",
+          state: "input-available",
+          input: {
+            reason:
+              "Nice work, Emma! Your three sentences each say something different.",
+          },
+        },
+      ],
+    } as unknown as UIMessage;
+    expect(getMarkEssayReadyReason(msg)).toBe(
+      "Nice work, Emma! Your three sentences each say something different."
+    );
+  });
+
+  it("returns null when the tool part has no reason input", () => {
+    const msg = {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-markEssayReady",
+          toolCallId: "tc_1",
+          state: "input-available",
+          input: {},
+        },
+      ],
+    } as unknown as UIMessage;
+    expect(getMarkEssayReadyReason(msg)).toBeNull();
+  });
+
+  it("returns null when the reason is whitespace-only", () => {
+    const msg = {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-markEssayReady",
+          toolCallId: "tc_1",
+          state: "input-available",
+          input: { reason: "   " },
+        },
+      ],
+    } as unknown as UIMessage;
+    expect(getMarkEssayReadyReason(msg)).toBeNull();
+  });
+
+  it("returns null for messages without the tool part, for user messages, and for undefined", () => {
+    const textOnly = {
+      id: "a1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Keep going!" }],
+    } as unknown as UIMessage;
+    expect(getMarkEssayReadyReason(textOnly)).toBeNull();
+
+    const userMsg = {
+      id: "u1",
+      role: "user",
+      parts: [
+        {
+          type: "tool-markEssayReady",
+          toolCallId: "tc_1",
+          state: "input-available",
+          input: { reason: "nope" },
+        },
+      ],
+    } as unknown as UIMessage;
+    expect(getMarkEssayReadyReason(userMsg)).toBeNull();
+
+    expect(getMarkEssayReadyReason(undefined)).toBeNull();
   });
 });
 

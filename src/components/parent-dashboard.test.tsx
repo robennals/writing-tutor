@@ -146,7 +146,7 @@ describe("ParentDashboard", () => {
     );
   });
 
-  it("'Owen's View' button routes to /", () => {
+  it("'Student's View' button routes to /", () => {
     render(
       <ParentDashboard
         skillProgress={progress}
@@ -154,7 +154,7 @@ describe("ParentDashboard", () => {
         settings={baseSettings}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /Owen.+View/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Student.+View/ }));
     expect(pushSpy).toHaveBeenCalledWith("/");
   });
 

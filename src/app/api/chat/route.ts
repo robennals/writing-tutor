@@ -65,6 +65,19 @@ export async function POST(req: NextRequest) {
     ignoreIncompleteToolCalls: true,
   });
 
+  // Deliver the student's name via a leading user-context message instead of
+  // embedding it in the (cached) system prompt. Keeping the system prompt
+  // identical across users preserves prompt-cache reuse.
+  modelMessages.unshift({
+    role: "user",
+    content: [
+      {
+        type: "text",
+        text: `(Context: The student's name is ${session.name}. Use this name naturally when greeting or celebrating.)`,
+      },
+    ],
+  });
+
   const result = streamText({
     model: "anthropic/claude-sonnet-4.5",
     system: systemPrompt,
@@ -72,12 +85,12 @@ export async function POST(req: NextRequest) {
     tools: {
       markEssayReady: tool({
         description:
-          "Call this tool when the draft essay meets ALL criteria for the current level and all prior levels. This makes a 'Mark as Complete' button appear for Owen. Only call it when you are genuinely ready to tell Owen the essay passes — not prematurely.",
+          "Call this tool when the draft essay meets ALL criteria for the current level and all prior levels. This makes a 'Mark as Complete' button appear for the student. You MUST also emit a text message in the same turn — a tool call with no text renders as a silent approval. Only call it when you are genuinely ready to tell the student that the essay passes — not prematurely.",
         inputSchema: z.object({
           reason: z
             .string()
             .describe(
-              "A brief, warm reason why the essay passes (one sentence)."
+              "A warm, 2-3 sentence congratulation for the student: call them by name, name the specific thing they did well for this level's skill, and invite them to click 'Mark as Complete'. This is the fallback shown if you forget to emit a text message, so write it as if it IS the message."
             ),
         }),
       }),
