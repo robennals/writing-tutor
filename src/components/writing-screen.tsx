@@ -246,7 +246,11 @@ export function WritingScreen({
   }, [handleStepChange, sendMessage]);
 
   const handleChangesSubmit = useCallback(async () => {
-    await handleStepChange("review");
+    // `revise`, not `review`: the revise-step system prompt tells the AI to
+    // re-read the essay and check if the previous suggestion was addressed.
+    // Under the review prompt, the AI treats "I've made changes" as a fresh
+    // check with no baseline and often replies "I can't see your changes".
+    await handleStepChange("revise");
     sendMessage({ text: "I've made changes! Can you check again?" });
   }, [handleStepChange, sendMessage]);
 

@@ -253,9 +253,10 @@ describe("WritingScreen — check/revise buttons", () => {
     ).toBeDefined();
   });
 
-  it("'I've Made Changes!' sends the revision message and PATCHes the step", async () => {
+  it("'I've Made Changes!' sends the revision message and PATCHes the step to 'revise' (not 'review')", async () => {
     renderScreen(makeEssay({ current_step: "review" }));
     useChatState.sendMessage.mockClear();
+    fetchSpy.mockClear();
     await act(async () => {
       fireEvent.click(
         screen.getByRole("button", { name: /I've Made Changes/ })
@@ -266,9 +267,15 @@ describe("WritingScreen — check/revise buttons", () => {
         text: "I've made changes! Can you check again?",
       })
     );
+    // The step must transition to `revise` so the AI gets the
+    // revision-aware system prompt ("re-read and check if the suggestion
+    // was addressed"), not the fresh-review prompt.
     expect(fetchSpy).toHaveBeenCalledWith(
       "/api/essays/1",
-      expect.objectContaining({ method: "PATCH" })
+      expect.objectContaining({
+        method: "PATCH",
+        body: expect.stringContaining('"current_step":"revise"'),
+      })
     );
   });
 
