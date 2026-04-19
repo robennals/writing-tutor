@@ -278,12 +278,12 @@ export function WritingScreen({
           `/essays/${essay.id}/level-up?newLevel=${data.newLevel}&type=${essay.writing_type}`
         );
       } else {
-        router.push(isParentView ? "/parent" : "/");
+        router.push("/");
       }
     } finally {
       completingRef.current = false;
     }
-  }, [essay, router, isParentView]);
+  }, [essay, router]);
 
   const handleSendChat = useCallback(
     (text: string) => {

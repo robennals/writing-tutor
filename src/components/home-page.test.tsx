@@ -128,7 +128,7 @@ describe("HomePage", () => {
     expect(screen.getByText(/What kind of writing\?/)).toBeDefined();
   });
 
-  it("opens the LevelInfoDialog for a type when its skill card is clicked", () => {
+  it("opens the NewEssayDialog with the type preselected when a skill card body is clicked", () => {
     render(
       <HomePage
         name="Owen"
@@ -137,8 +137,41 @@ describe("HomePage", () => {
         settings={{}}
       />
     );
+    // Clicking the card body (the type name) should skip type selection
+    // and jump straight to the topic step for that type.
     fireEvent.click(screen.getByText(/💬 Opinion/));
+    expect(screen.getByText(/What do you want to write about\?/)).toBeDefined();
+    // Title input is present — i.e. topic step, not type-picker step.
+    expect(screen.getByPlaceholderText(/Why Robots/)).toBeDefined();
+  });
+
+  it("opens the LevelInfoDialog when the Level badge on a skill card is clicked", () => {
+    render(
+      <HomePage
+        name="Owen"
+        skillProgress={progress}
+        essays={[]}
+        settings={{}}
+      />
+    );
+    // The opinion card shows its level badge; "Level 2" comes from progress.
+    fireEvent.click(screen.getByText("Level 2"));
     expect(screen.getByText(/Opinion Writing — Level Journey/)).toBeDefined();
+  });
+
+  it("clicking the Level badge does NOT open the New Essay dialog (stopPropagation on the badge)", () => {
+    render(
+      <HomePage
+        name="Owen"
+        skillProgress={progress}
+        essays={[]}
+        settings={{}}
+      />
+    );
+    fireEvent.click(screen.getByText("Level 2"));
+    // The level-info dialog is up; the new-essay dialog is NOT.
+    expect(screen.getByText(/Opinion Writing — Level Journey/)).toBeDefined();
+    expect(screen.queryByText(/What do you want to write about\?/)).toBeNull();
   });
 
   it("closes the LevelInfoDialog when its onOpenChange handler fires with false", () => {
@@ -150,13 +183,28 @@ describe("HomePage", () => {
         settings={{}}
       />
     );
-    fireEvent.click(screen.getByText(/💬 Opinion/));
+    fireEvent.click(screen.getByText("Level 2"));
     expect(screen.getByText(/Opinion Writing — Level Journey/)).toBeDefined();
 
     // The dialog is a Radix-style Dialog; simulate close via Escape key on body.
     fireEvent.keyDown(document.body, { key: "Escape" });
     // After close, HomePage clears levelInfoType → dialog unmounts.
     expect(screen.queryByText(/Opinion Writing — Level Journey/)).toBeNull();
+  });
+
+  it("the top-right New Essay button opens the dialog at the type-picker step (no type preselected)", () => {
+    render(
+      <HomePage
+        name="Owen"
+        skillProgress={progress}
+        essays={[]}
+        settings={{}}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /New Essay/ }));
+    // Type picker step, not topic step.
+    expect(screen.getByText(/What kind of writing\?/)).toBeDefined();
+    expect(screen.queryByText(/What do you want to write about\?/)).toBeNull();
   });
 
   it("logs out: POSTs DELETE /api/auth then routes to /login", async () => {
@@ -185,12 +233,15 @@ describe("HomePage", () => {
 
   it("opening the level info dialog with no matching progress row falls back to level 1 / 0 essays", () => {
     // No skill_progress rows — the `?? 1` / `?? 0` branches in the dialog
-    // props have to kick in.
+    // props have to kick in. With empty progress all three cards show
+    // 'Level 1', so target the opinion card specifically.
     render(
       <HomePage name="Owen" skillProgress={[]} essays={[]} settings={{}} />
     );
-    fireEvent.click(screen.getByText(/💬 Opinion/));
-    // Dialog renders; at level 1 level 1 is 'Current' and essays-at-level 0.
+    // Click the Level 1 badge on the opinion card (the first skill card).
+    const badges = screen.getAllByText("Level 1");
+    fireEvent.click(badges[0]);
+    // Dialog renders; at level 1 essays-at-level is 0.
     expect(screen.getByText(/0\/3 essays at this level/)).toBeDefined();
   });
 });

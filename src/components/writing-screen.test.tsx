@@ -366,7 +366,7 @@ describe("WritingScreen — Mark as Complete button", () => {
     );
   });
 
-  it("completing without a level-up updates local state in place (no navigation)", async () => {
+  it("completing without a level-up routes back to the student home", async () => {
     useChatState.messages = [
       {
         id: "a1",
@@ -388,8 +388,9 @@ describe("WritingScreen — Mark as Complete button", () => {
       );
     });
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
-    expect(pushSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(pushSpy).toHaveBeenCalledWith("/"));
   });
+
 });
 
 describe("WritingScreen — chat input", () => {
