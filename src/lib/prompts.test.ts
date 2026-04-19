@@ -81,9 +81,15 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("markEssayReady");
   });
 
-  it("surfaces the revise-step instructions when current_step is 'revise'", () => {
+  it("surfaces the revise-step instructions when current_step is 'revise', anchoring the AI on the CURRENT draft", () => {
     const prompt = buildSystemPrompt({ ...baseArgs, currentStep: "revise" });
-    expect(prompt).toContain("revising based on your feedback");
+    // The revise step must tell Claude to read the CURRENT draft and NOT
+    // rely on its memory of the previous evaluation. Regression guard for
+    // the "I can't see your changes" hallucination.
+    expect(prompt).toMatch(/I've Made Changes/);
+    expect(prompt).toMatch(/current.*draft|draft.*current/i);
+    expect(prompt).toMatch(/do not rely|don't rely/i);
+    expect(prompt).toMatch(/never claim you can.?t see|do not say.*save/i);
   });
 
   it("falls back to a generic helper line for unknown steps", () => {
