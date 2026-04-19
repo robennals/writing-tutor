@@ -487,7 +487,7 @@ describe("WritingScreen — chat input", () => {
   });
 });
 
-describe("WritingScreen — brainstorm / outline helpers (level 11)", () => {
+describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)", () => {
   it("renders all three tabs when the level makes them available", () => {
     renderScreen(
       makeEssay({
@@ -496,7 +496,7 @@ describe("WritingScreen — brainstorm / outline helpers (level 11)", () => {
         word_count: 3,
       }),
       [],
-      11
+      13
     );
     expect(screen.getByRole("tab", { name: /Brainstorm/ })).toBeDefined();
     expect(screen.getByRole("tab", { name: /Outline/ })).toBeDefined();
@@ -579,7 +579,7 @@ describe("WritingScreen — brainstorm / outline helpers (level 11)", () => {
             created_at: "",
           },
         ],
-        11
+        13
       );
       fetchSpy.mockClear();
       const textarea = screen.getAllByRole("textbox").find(
@@ -616,7 +616,7 @@ describe("WritingScreen — brainstorm / outline helpers (level 11)", () => {
           created_at: "",
         },
       ],
-      11
+      13
     );
     useChatState.sendMessage.mockClear();
     fireEvent.click(screen.getByRole("button", { name: /Help me plan/ }));
@@ -727,7 +727,7 @@ describe("WritingScreen — default fallbacks & TTS", () => {
     expect(screen.getByText("hi tutor")).toBeDefined();
   });
 
-  it("switching to outline tab (level 11) maps step → 'organize'", async () => {
+  it("switching to outline tab maps step → 'organize'", async () => {
     renderScreen(
       makeEssay({ active_tab: "draft", current_step: "brainstorm" }),
       [
@@ -740,7 +740,7 @@ describe("WritingScreen — default fallbacks & TTS", () => {
           created_at: "",
         },
       ],
-      11
+      13
     );
     fetchSpy.mockClear();
     fireEvent.click(screen.getByRole("tab", { name: /Outline/ }));
