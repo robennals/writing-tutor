@@ -49,13 +49,13 @@ describe("buildSystemPrompt", () => {
     const level3 = buildSystemPrompt({ ...baseArgs, currentLevel: 3 });
     expect(level3).not.toContain("**Outline:**");
 
-    const level11 = buildSystemPrompt({
+    const levelWithOutline = buildSystemPrompt({
       ...baseArgs,
-      currentLevel: 11,
+      currentLevel: 13,
       outline: "1. intro 2. body 3. end",
     });
-    expect(level11).toContain("**Outline:**");
-    expect(level11).toContain("1. intro 2. body 3. end");
+    expect(levelWithOutline).toContain("**Outline:**");
+    expect(levelWithOutline).toContain("1. intro 2. body 3. end");
   });
 
   it("includes placeholders for empty title and empty draft", () => {

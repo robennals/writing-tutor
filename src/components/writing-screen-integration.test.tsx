@@ -332,7 +332,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             created_at: "2026-04-18T00:00:00Z",
           },
         ]}
-        currentLevel={11}
+        currentLevel={13}
         essaysAtLevel={0}
         settings={{}}
         isParentView={false}

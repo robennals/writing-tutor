@@ -113,6 +113,27 @@ export const LEVELS: LevelDefinition[] = [
   },
   {
     level: 5,
+    name: "Capitalizer",
+    focus: "Capitalizing sentence starts and proper nouns",
+    criteria:
+      "Every sentence starts with a capital. Every proper noun is capitalized — anything there's only one specific one of: people, pets, places, brands, days, months, and the writer's 'I'.",
+    essaysToPass: 3,
+    teachingTip:
+      "Two checks: every sentence starts with a capital, and every one-of-a-kind name is capitalized. If a name is lowercase, ask: 'Is there only one of those, or lots?' (lots of cats, but only one Buffy). 'I' fits the same rule — only one YOU. Don't fix it for the writer — let them catch it.",
+    availableTabs: ["brainstorm", "draft"],
+    kidExplanation:
+      "Two rules: every sentence STARTS with a capital, and every NAME gets a capital. If there's only one of something — your cat Buffy, your school, the word 'I' — it's a name.",
+    techniques: [
+      "Check every sentence starts with a capital",
+      "Capitalize every name: people, pets, places, brands, days, months",
+      "'I' is a name for yourself — always capital",
+    ],
+    example:
+      "Pizza is the best food. On Friday nights, my dad orders from Tony's Pizzeria. I always pick pepperoni, and my cat Buffy waits for the scraps.",
+    sources: ["Standard English mechanics"],
+  },
+  {
+    level: 6,
     name: "Order Keeper",
     focus: "Logical sequence — beginning, middle, end",
     criteria:
@@ -133,7 +154,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["6+1 Traits — Organization"],
   },
   {
-    level: 6,
+    level: 7,
     name: "Sentence Combiner",
     focus: "Combining short sentences into stronger ones",
     criteria:
@@ -154,7 +175,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Hochman Method — sentence combining"],
   },
   {
-    level: 7,
+    level: 8,
     name: "Paragraph Builder",
     focus: "Paragraphs with topic sentences, details, and a concluding sentence",
     criteria:
@@ -176,7 +197,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Hochman Method — Single-Paragraph Outline (SPO)"],
   },
   {
-    level: 8,
+    level: 9,
     name: "Word Chooser",
     focus: "Using vivid, precise words instead of bland ones",
     criteria:
@@ -197,7 +218,30 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["6+1 Traits — Word Choice"],
   },
   {
-    level: 9,
+    level: 10,
+    name: "Speller",
+    focus: "Correct spelling — using patterns and recognizing sight words",
+    criteria:
+      "Every word in the essay is spelled correctly. (Proper names and made-up words are exempt as long as the writer spells them consistently.) The writer is welcome to use a dictionary, ask for help, or self-correct — but the final draft has no remaining misspellings.",
+    essaysToPass: 4,
+    teachingTip:
+      "Be warm and encouraging — never shame a misspelling, and never use words like 'wrong' or 'mistake'. For each misspelled word, briefly teach WHY it's tricky. Three patterns to draw from: (1) sight words that just have to be memorized (e.g., 'said', 'were', 'come', 'friend', 'because'); (2) the writer's spelling was phonetically reasonable, but English picked a different pattern for that sound (e.g., 'thay' → 'they' — the long-A sound is sometimes 'ai', sometimes 'ay', sometimes 'ey'); (3) a rule applies (silent-e makes the vowel say its name; 'i before e except after c'; doubling consonants before -ing). Always validate the writer's logic first ('That spelling totally makes sense for that sound!') before showing the actual spelling. One misspelling per message — don't overwhelm.",
+    availableTabs: ["brainstorm", "draft"],
+    kidExplanation:
+      "Now your spelling counts. Don't worry — the Buddy will help. When you spell a word in a way that didn't quite work, the Buddy will tell you WHY it's tricky. Some words just have to be memorized (those are sight words). Some sounds can be spelled lots of different ways, and English just picked one — not your fault, but worth learning.",
+    techniques: [
+      "Sight words: words you can't sound out — you just have to recognize them (said, were, come, friend, because)",
+      "One sound, many spellings: long-A can be 'ai' (rain), 'ay' (day), 'eigh' (eight), 'ey' (they) — each word has its own",
+      "Silent-e rule: the 'e' at the end makes the earlier vowel say its name (cap → cape, kit → kite)",
+      "'I before E except after C' (and a few exceptions worth knowing)",
+      "When you're not sure: try it, then ask or look it up — that's what real writers do",
+    ],
+    example:
+      "Pizza is the best food. I really love pepperoni because it has a slight spice. My friends and I always ask for pizza on Fridays.",
+    sources: ["Structured Literacy / Orton-Gillingham — phonics patterns", "Sight word recognition"],
+  },
+  {
+    level: 11,
     name: "Sentence Varier",
     focus: "Mixing sentence lengths, types, and structures",
     criteria:
@@ -219,7 +263,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["6+1 Traits — Sentence Fluency", "Hochman — appositives"],
   },
   {
-    level: 10,
+    level: 12,
     name: "Summarizer",
     focus: "Saying what you mean concisely — no wasted words",
     criteria:
@@ -240,7 +284,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Hochman Method — summarizing"],
   },
   {
-    level: 11,
+    level: 13,
     name: "Essay Builder",
     focus: "A real multi-paragraph essay — introduction, body, conclusion",
     criteria:
@@ -263,7 +307,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Hochman Method — MPO", "SRSD — TREE, W-W-W strategies"],
   },
   {
-    level: 12,
+    level: 14,
     name: "Essay Polish",
     focus: "Compelling hooks, sharp thesis statements, meaningful conclusions",
     criteria:
@@ -284,7 +328,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Academic writing craft", "6+1 Traits — Organization"],
   },
   {
-    level: 13,
+    level: 15,
     name: "Voice Finder",
     focus: "Writing that sounds like YOU — authentic personal voice",
     criteria:
@@ -306,7 +350,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["6+1 Traits — Voice"],
   },
   {
-    level: 14,
+    level: 16,
     name: "Evidence & Counter-Argument",
     focus: "Supporting claims with strong evidence and addressing opposing views",
     criteria:
@@ -328,7 +372,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["SRSD — STOP+DARE strategy"],
   },
   {
-    level: 15,
+    level: 17,
     name: "Reviser",
     focus: "True revision — not just editing, but rethinking",
     criteria:
@@ -350,7 +394,7 @@ export const LEVELS: LevelDefinition[] = [
     sources: ["Writing process research", "Donald Graves — revision"],
   },
   {
-    level: 16,
+    level: 18,
     name: "Master Writer",
     focus: "All skills combined, consistently, with polish",
     criteria:
