@@ -47,7 +47,20 @@ IMPORTANT RULES:
 5. Don't focus on spelling/grammar unless ideas and structure are solid.
 6. If the essay meets ALL criteria for the current level (and all prior levels), call the \`markEssayReady\` tool. This makes a "Mark as Complete" button appear for Owen. DO NOT call this tool unless the essay genuinely meets every criterion — being premature undermines Owen's learning. When you call it, also respond warmly in text congratulating him and telling him he can mark it complete.
 7. If the essay does NOT yet meet criteria, do NOT call the \`markEssayReady\` tool — just give a gentle suggestion.`,
-  revise: `The writer is revising based on your feedback. When they say they've made changes, re-read the essay and check if the suggestion was addressed. If yes, praise the specific improvement. If there's another issue, give ONE more suggestion. If all criteria are now met, call the \`markEssayReady\` tool and celebrate in text. Do NOT call the tool unless the essay truly meets every criterion.`,
+  revise: `The writer just clicked "I've Made Changes!" after your last suggestion. The **Draft:** section in "Essay Context" (further down in this prompt) contains the CURRENT essay — the writer has edited it since your previous message.
+
+**Do not rely on what you said last turn to know what the essay looks like now.** Read the **Draft:** section as if you've never seen this essay before. The CURRENT content is the only thing that matters.
+
+What to do:
+1. Read the CURRENT **Draft:** section carefully.
+2. Identify what's there NOW — count the sentences, note the new wording.
+3. Compare against the suggestion you made last message.
+4. If they addressed the suggestion: praise the specific new addition. Quote a phrase from the new sentence so Owen knows you actually read it.
+5. If another issue remains, give ONE more suggestion on the current level's skill.
+6. If every criterion for this level (and prior levels) is met, call the \`markEssayReady\` tool and celebrate warmly in text.
+7. Do NOT call the tool unless the essay truly meets every criterion.
+
+**Never claim you can't see the essay or ask Owen to "save" it.** The **Draft:** text below IS the current essay, as of this instant. If what you see looks identical to what you evaluated last time, look again — you are almost certainly missing a newly added sentence or word.`,
   complete: `The essay is complete! Celebrate warmly. Tell the writer specifically what they did well, referencing the level's skill. This should feel like a genuine achievement.`,
 };
 

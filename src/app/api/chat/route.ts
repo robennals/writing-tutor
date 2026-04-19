@@ -57,7 +57,13 @@ export async function POST(req: NextRequest) {
     outline: outline ?? "",
   });
 
-  const modelMessages = await convertToModelMessages(messages);
+  // Strip tool-call parts whose result never came back (e.g. `markEssayReady`,
+  // which has no server-side `execute` and no client-side `addToolResult`).
+  // Without this, Anthropic rejects the next turn: every tool_use must be
+  // followed by a tool_result.
+  const modelMessages = await convertToModelMessages(messages, {
+    ignoreIncompleteToolCalls: true,
+  });
 
   const result = streamText({
     model: "anthropic/claude-sonnet-4.5",

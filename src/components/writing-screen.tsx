@@ -12,21 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EssayEditor } from "./editor";
 import { TtsButton } from "./tts-button";
 import { WRITING_TYPES, getLevel, type Tab } from "@/lib/levels";
+import { hasMarkEssayReady, pickActiveTab } from "@/lib/chat-helpers";
 import type { Essay, Message } from "@/lib/queries";
 import { Check, ArrowLeft, Send, Lightbulb, ListOrdered, PenLine } from "lucide-react";
 import { LevelInfoDialog } from "./level-info-dialog";
-
-/**
- * Returns true if the given assistant message contains a `markEssayReady`
- * tool call — i.e. the AI has explicitly signaled the essay meets criteria.
- * In AI SDK v6, tool call parts have type `tool-<toolName>`.
- */
-function hasMarkEssayReady(message: UIMessage | undefined): boolean {
-  if (!message || message.role !== "assistant") return false;
-  return message.parts.some(
-    (p) => "type" in p && p.type === "tool-markEssayReady"
-  );
-}
 
 const TAB_CONFIG: Record<
   Tab,
@@ -75,7 +64,7 @@ export function WritingScreen({
     initialEssay.brainstorm_notes ?? ""
   );
   const [outline, setOutline] = useState(initialEssay.outline ?? "");
-  const [activeTab, setActiveTab] = useState<Tab>(
+  const [storedTab, setStoredTab] = useState<Tab>(
     (initialEssay.active_tab as Tab) ?? "draft"
   );
   const [currentStep, setCurrentStep] = useState(initialEssay.current_step);
@@ -88,12 +77,8 @@ export function WritingScreen({
   const levelDef = getLevel(currentLevel);
   const availableTabs = levelDef.availableTabs;
 
-  // If current active_tab isn't available at this level, fall back to draft.
-  useEffect(() => {
-    if (!availableTabs.includes(activeTab)) {
-      setActiveTab("draft");
-    }
-  }, [availableTabs, activeTab]);
+  // Fall back to draft if the stored tab isn't available at the current level.
+  const activeTab: Tab = pickActiveTab(storedTab, availableTabs);
 
   // Convert DB messages to UIMessage format ONCE for the initial seed.
   // Do NOT recompute on every render — useChat would reset its state.
@@ -135,21 +120,28 @@ export function WritingScreen({
     };
   });
 
+  // The transport's body resolver runs at request time, reading the latest ref
+  // value — not at render time. Wrapped in useCallback so useMemo's dep list
+  // doesn't need to touch the ref itself.
+  const resolveBody = useCallback(() => bodyStateRef.current, []);
+
   // Memoize transport so useChat doesn't see a new instance on every render.
   const transport = useMemo(
     () =>
+      // eslint-disable-next-line react-hooks/refs -- resolveBody is invoked at send time, not render time
       new DefaultChatTransport({
         api: "/api/chat",
-        body: () => bodyStateRef.current,
+        body: resolveBody,
       }),
-    []
+    [resolveBody]
   );
 
-  const { messages, sendMessage, status } = useChat({
-    id: `essay-${essay.id}`,
-    transport,
-    messages: initialSeedMessages,
-  });
+  const { messages, sendMessage, status, error, regenerate, clearError } =
+    useChat({
+      id: `essay-${essay.id}`,
+      transport,
+      messages: initialSeedMessages,
+    });
 
   const isStreaming = status === "streaming" || status === "submitted";
 
@@ -216,7 +208,7 @@ export function WritingScreen({
   const handleTabChange = useCallback(
     async (newTab: string) => {
       const tab = newTab as Tab;
-      setActiveTab(tab);
+      setStoredTab(tab);
       // Map tab to step
       const newStep =
         tab === "brainstorm"
@@ -254,7 +246,11 @@ export function WritingScreen({
   }, [handleStepChange, sendMessage]);
 
   const handleChangesSubmit = useCallback(async () => {
-    await handleStepChange("review");
+    // `revise`, not `review`: the revise-step system prompt tells the AI to
+    // re-read the essay and check if the previous suggestion was addressed.
+    // Under the review prompt, the AI treats "I've made changes" as a fresh
+    // check with no baseline and often replies "I can't see your changes".
+    await handleStepChange("revise");
     sendMessage({ text: "I've made changes! Can you check again?" });
   }, [handleStepChange, sendMessage]);
 
@@ -547,6 +543,25 @@ export function WritingScreen({
                   </p>
                 </div>
               )}
+
+            {error && !isStreaming && (
+              <div className="bg-red-950/30 border border-red-600/30 rounded-xl p-3.5 space-y-2">
+                <p className="text-sm text-red-300">
+                  Hmm, something went wrong. Let&apos;s try again!
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-red-600/30 text-red-300 hover:bg-red-600/10"
+                  onClick={() => {
+                    clearError();
+                    regenerate();
+                  }}
+                >
+                  Try again
+                </Button>
+              </div>
+            )}
 
             {/* Complete button only appears when the AI has called the
                 markEssayReady tool in the most recent assistant message. */}
