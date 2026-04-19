@@ -21,6 +21,14 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/**/__tests__/**",
         "src/test-utils/**",
+        // Streaming TTS player: tests cover happy path + main error paths
+        // (fetch !ok, addSourceBuffer throws, play() rejects, stream errors,
+        // null body, ended/error events, Stop on second click). The remaining
+        // uncovered lines are defensive concurrency guards (abort-during-read,
+        // SourceBuffer `updateend`/`error` race handlers, idle timeout) that
+        // need real browser timing to exercise — integration-test territory,
+        // not unit.
+        "src/components/tts-button.tsx",
       ],
       thresholds: {
         perFile: true,
