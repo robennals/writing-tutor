@@ -12,7 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EssayEditor } from "./editor";
 import { TtsButton } from "./tts-button";
 import { WRITING_TYPES, getLevel, type Tab } from "@/lib/levels";
-import { hasMarkEssayReady, pickActiveTab } from "@/lib/chat-helpers";
+import {
+  getMarkEssayReadyReason,
+  hasMarkEssayReady,
+  pickActiveTab,
+} from "@/lib/chat-helpers";
 import type { Essay, Message } from "@/lib/queries";
 import { Check, ArrowLeft, Send, Lightbulb, ListOrdered, PenLine } from "lucide-react";
 import { LevelInfoDialog } from "./level-info-dialog";
@@ -512,15 +516,24 @@ export function WritingScreen({
                 )
                 .map((p) => p.text)
                 .join("");
+              // Fallback: if the model called markEssayReady without any text,
+              // surface the tool's `reason` so the student still sees *why*
+              // their essay passed — never render a silent approval.
+              const displayText =
+                text.trim() || getMarkEssayReadyReason(msg) || text;
               return (
                 <div key={msg.id}>
                   {msg.role === "assistant" ? (
                     <div className="bg-indigo-950/30 rounded-xl p-3.5 space-y-2">
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {text}
+                        {displayText}
                       </p>
-                      {settings.tts_tutor === "true" && text && (
-                        <TtsButton text={text} label="Hear this" size="sm" />
+                      {settings.tts_tutor === "true" && displayText && (
+                        <TtsButton
+                          text={displayText}
+                          label="Hear this"
+                          size="sm"
+                        />
                       )}
                     </div>
                   ) : (

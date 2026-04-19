@@ -97,7 +97,7 @@ describe("buildSystemPrompt", () => {
       ...baseArgs,
       currentStep: "not-a-real-step",
     });
-    expect(prompt).toContain("Help the writer with whatever they need");
+    expect(prompt).toContain("Help the student with whatever they need");
   });
 
   it("tells the AI not to mention brainstorm/outline when only draft is available", () => {

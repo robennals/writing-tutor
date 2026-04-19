@@ -13,7 +13,7 @@ export interface LevelDefinition {
   teachingTip: string;
   /** Which editor tabs are available at this level. */
   availableTabs: Tab[];
-  /** Kid-friendly explanation — what this level is about, in Owen's words. */
+  /** Kid-friendly explanation — what this level is about, in the child's own words. */
   kidExplanation: string;
   /** Concrete techniques the AI teaches at this level. */
   techniques: string[];
@@ -32,7 +32,7 @@ export const LEVELS: LevelDefinition[] = [
     name: "Sentence Writer",
     focus: "Writing complete sentences that make sense",
     criteria:
-      "The essay has at least 3 sentences on the topic. Each sentence is a complete thought — it has a subject and a verb, and it makes sense on its own. No fragments like 'Because I like dogs.'",
+      "The essay has at least 3 sentences on the topic, and each sentence says something different (restating the same idea in new words does not count). Each sentence is a complete thought — it has a subject and a verb, and makes sense on its own. Sentences that start with a subordinating conjunction like 'because', 'but', 'so', or 'and' as a standalone punctuated sentence are fragments and do NOT count (e.g., 'Because I like dogs.' or 'so I think it is fun.').",
     essaysToPass: 3,
     teachingTip:
       "Help the writer check that each sentence has a 'who/what' and an action. If a sentence is a fragment, ask: 'What is the sentence trying to say? Can you make it a whole idea?'",

@@ -13,6 +13,27 @@ export function hasMarkEssayReady(message: UIMessage | undefined): boolean {
 }
 
 /**
+ * Extracts the `reason` string from a `markEssayReady` tool call on an
+ * assistant message, if one is present. Used as a fallback when the model
+ * emits the tool call without accompanying text — we surface the reason so
+ * the student always sees *why* their essay passed.
+ */
+export function getMarkEssayReadyReason(
+  message: UIMessage | undefined
+): string | null {
+  if (!message || message.role !== "assistant") return null;
+  for (const p of message.parts) {
+    if ("type" in p && p.type === "tool-markEssayReady") {
+      const input = (p as { input?: { reason?: unknown } }).input;
+      if (input && typeof input.reason === "string" && input.reason.trim()) {
+        return input.reason.trim();
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Choose which tab to show: the stored preference if still available at the
  * current level, otherwise `draft` (which is always available).
  */

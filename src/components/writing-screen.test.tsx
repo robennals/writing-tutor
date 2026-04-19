@@ -366,6 +366,53 @@ describe("WritingScreen — Mark as Complete button", () => {
     );
   });
 
+  it("renders no message text when the AI emits neither text nor a reason (defensive empty case, no crash)", () => {
+    useChatState.messages = [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-markEssayReady",
+            toolCallId: "tc_1",
+            state: "input-available",
+            input: { reason: "" },
+          },
+        ],
+      } as unknown as UIMessage,
+    ];
+    renderScreen();
+    // Button still shows (tool was called); message area just stays empty
+    // rather than crashing.
+    expect(
+      screen.getByRole("button", { name: /Mark as Complete/ })
+    ).toBeDefined();
+  });
+
+  it("renders the tool's reason as the message when the AI emits a markEssayReady tool call with no accompanying text (silent-approval fallback)", () => {
+    useChatState.messages = [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-markEssayReady",
+            toolCallId: "tc_1",
+            state: "input-available",
+            input: {
+              reason:
+                "Amazing work, Owen! Each sentence says something different. Click Mark as Complete!",
+            },
+          },
+        ],
+      } as unknown as UIMessage,
+    ];
+    renderScreen();
+    expect(
+      screen.getByText(/Amazing work, Owen!.*Mark as Complete/)
+    ).toBeDefined();
+  });
+
   it("completing without a level-up routes back to the student home", async () => {
     useChatState.messages = [
       {

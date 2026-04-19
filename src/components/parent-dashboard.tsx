@@ -51,7 +51,7 @@ export function ParentDashboard({
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
-              Owen&apos;s View
+              Student&apos;s View
             </Button>
             <Button
               variant="ghost"
