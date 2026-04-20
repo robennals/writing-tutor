@@ -76,6 +76,43 @@ describe("buildSystemPrompt", () => {
     ).toContain("INFORMATIONAL essay");
   });
 
+  it("pulls in genre-specific criteria for branched levels (L8 Paragraph Builder)", () => {
+    // Regression guard: if the prompt accidentally bypasses getLevelContent,
+    // all three genres would share text. The branched L8 criteria use
+    // distinctive vocabulary per genre — "claim" for opinion, "scene" for
+    // creative, "sub-topic" for informational.
+    const opinion = buildSystemPrompt({
+      ...baseArgs,
+      currentLevel: 8,
+      writingType: "opinion",
+    });
+    const creative = buildSystemPrompt({
+      ...baseArgs,
+      currentLevel: 8,
+      writingType: "creative",
+    });
+    const informational = buildSystemPrompt({
+      ...baseArgs,
+      currentLevel: 8,
+      writingType: "informational",
+    });
+    expect(opinion).toMatch(/claim/i);
+    expect(creative).toMatch(/scene/i);
+    expect(informational).toMatch(/sub-topic/i);
+  });
+
+  it("pulls genre-specific criteria for prior levels too (not just the current level)", () => {
+    // When checking prior level skills, each prior level's criteria should
+    // also be resolved against the writer's genre.
+    const creative = buildSystemPrompt({
+      ...baseArgs,
+      currentLevel: 8,
+      writingType: "creative",
+    });
+    // L6 Order Keeper, creative variant, uses "scene" or "story" phrasing.
+    expect(creative).toMatch(/Level 6.*story|Level 6.*scene/i);
+  });
+
   it("surfaces the review-step instructions when current_step is 'review'", () => {
     const prompt = buildSystemPrompt({ ...baseArgs, currentStep: "review" });
     expect(prompt).toContain("markEssayReady");

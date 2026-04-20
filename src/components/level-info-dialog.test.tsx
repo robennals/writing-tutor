@@ -73,8 +73,16 @@ describe("LevelInfoDialog", () => {
     });
     fireEvent.click(level3);
 
-    // Level 3's kidExplanation should now be visible.
-    expect(screen.getByText(/Your essay should be about ONE thing/)).toBeDefined();
+    // Level 3's kidExplanation should now be visible. L3 branches by genre;
+    // the default renderOpen uses 'opinion', which talks about having ONE
+    // opinion to argue.
+    expect(screen.getByText(/ONE opinion/)).toBeDefined();
+  });
+
+  it("renders genre-specific text for branched levels (L3 creative variant talks about stories)", () => {
+    renderOpen(3, 0, "creative");
+    // L3 creative variant talks about ONE thing/story, not opinions.
+    expect(screen.getByText(/Your story should be about ONE thing/)).toBeDefined();
   });
 
   it("shows which tabs are unlocked at a level (level 3 unlocks brainstorm)", () => {

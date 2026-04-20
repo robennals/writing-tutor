@@ -52,6 +52,7 @@ export function WritingScreen({
   essaysAtLevel,
   settings,
   isParentView,
+  debugLevelActive = false,
 }: {
   essay: Essay;
   initialMessages: Message[];
@@ -59,6 +60,7 @@ export function WritingScreen({
   essaysAtLevel: number;
   settings: Record<string, string>;
   isParentView: boolean;
+  debugLevelActive?: boolean;
 }) {
   const router = useRouter();
   const [essay] = useState(initialEssay);
@@ -321,6 +323,14 @@ export function WritingScreen({
           <span className="text-sm font-medium">✏️ Writing Tutor</span>
         </div>
         <div className="flex items-center gap-3">
+          {debugLevelActive && (
+            <Badge
+              variant="outline"
+              className="gap-1.5 text-[10px] text-fuchsia-400 border-fuchsia-400/50"
+            >
+              DEBUG: level override
+            </Badge>
+          )}
           <Badge
             variant="outline"
             className="gap-1.5 cursor-pointer hover:bg-accent/50 transition-colors"
