@@ -201,9 +201,9 @@ describe("POST /api/chat", () => {
     const spy = vi
       .spyOn(aiMod, "convertToModelMessages")
       .mockImplementation(
-        () =>
-          [{ role: "user", content: "bare string" }] as ReturnType<
-            typeof aiMod.convertToModelMessages
+        async () =>
+          [{ role: "user", content: "bare string" }] as Awaited<
+            ReturnType<typeof aiMod.convertToModelMessages>
           >
       );
     try {
@@ -231,7 +231,7 @@ describe("POST /api/chat", () => {
     const spy = vi
       .spyOn(aiMod, "convertToModelMessages")
       .mockImplementation(
-        () =>
+        async () =>
           [
             {
               role: "user",
@@ -240,7 +240,7 @@ describe("POST /api/chat", () => {
                 { type: "text", text: "part-two" },
               ],
             },
-          ] as ReturnType<typeof aiMod.convertToModelMessages>
+          ] as Awaited<ReturnType<typeof aiMod.convertToModelMessages>>
       );
     try {
       const { POST } = await import("./route");
