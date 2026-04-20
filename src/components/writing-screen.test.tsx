@@ -132,7 +132,8 @@ function renderScreen(
   messages: Message[] = [],
   level = 1,
   settings: Record<string, string> = {},
-  isParentView = false
+  isParentView = false,
+  debugLevelActive = false
 ) {
   return render(
     <WritingScreen
@@ -142,6 +143,7 @@ function renderScreen(
       essaysAtLevel={0}
       settings={settings}
       isParentView={isParentView}
+      debugLevelActive={debugLevelActive}
     />
   );
 }
@@ -153,6 +155,14 @@ describe("WritingScreen — initial render", () => {
     renderScreen();
     expect(screen.getByText("Dogs")).toBeDefined();
     expect(screen.getByText(/Level 1/)).toBeDefined();
+  });
+
+  it("renders a DEBUG badge only when debugLevelActive is true", () => {
+    const { unmount } = renderScreen();
+    expect(screen.queryByText(/DEBUG: level override/)).toBeNull();
+    unmount();
+    renderScreen(makeEssay(), [], 1, {}, false, true);
+    expect(screen.getByText(/DEBUG: level override/)).toBeDefined();
   });
 
   it("sends an opening greeting when there are no prior messages and we're not in parent view", () => {

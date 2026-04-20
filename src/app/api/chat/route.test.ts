@@ -192,6 +192,26 @@ describe("POST /api/chat", () => {
     expect(assistantText).toContain("Looks great");
   });
 
+  it("prepends the volatile context block (current draft) onto the final user turn sent to the model", async () => {
+    // Core invariant: the contextBlock built by buildContextMessage — which
+    // carries the student's CURRENT draft, tab, and step — must ride on the
+    // last user turn so Claude evaluates the latest essay state, not stale
+    // history. If this regresses the tutor reviews whatever draft was in
+    // place the first time a conversation started.
+    const { POST } = await import("./route");
+    await POST(buildRequest(baseBody()));
+    const modelMessages = streamTextSpy.mock.calls[0][0]
+      .messages as ModelMessage[];
+    const last = modelMessages[modelMessages.length - 1];
+    expect(last.role).toBe("user");
+    // The prepended part is a "text" part whose text is exactly the
+    // buildContextMessage return value (mocked to "CONTEXT" at module top).
+    const parts = last.content as Array<{ type: string; text: string }>;
+    expect(parts[0]).toEqual({ type: "text", text: "CONTEXT" });
+    // And the student's original message is still there after the context.
+    expect(parts.slice(1).some((p) => p.text === "hello")).toBe(true);
+  });
+
   it("skips user-save when the last message is not a user message (assistant-only history)", async () => {
     const { POST } = await import("./route");
     await POST(

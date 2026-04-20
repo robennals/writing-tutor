@@ -1,4 +1,10 @@
-import { getLevel, LEVELS, type WritingType, type Tab } from "./levels";
+import {
+  getLevel,
+  getLevelContent,
+  LEVELS,
+  type WritingType,
+  type Tab,
+} from "./levels";
 
 const WRITING_TYPE_CONTEXT: Record<WritingType, string> = {
   opinion:
@@ -81,6 +87,7 @@ export function buildSystemPrompt({
   currentLevel: number;
 }): string {
   const levelDef = getLevel(currentLevel);
+  const levelContent = getLevelContent(levelDef, writingType);
   const priorLevels = LEVELS.slice(0, currentLevel - 1);
   const availableTabs = levelDef.availableTabs;
 
@@ -109,15 +116,20 @@ ${WRITING_TYPE_CONTEXT[writingType]}
 
 ## Current Level: ${currentLevel} — ${levelDef.name}
 **Focus:** ${levelDef.focus}
-**What to look for:** ${levelDef.criteria}
+**What to look for:** ${levelContent.criteria}
 **Techniques to teach at this level:**
-${levelDef.techniques.map((t) => `- ${t}`).join("\n")}
-**Teaching approach:** ${levelDef.teachingTip}
+${levelContent.techniques.map((t) => `- ${t}`).join("\n")}
+**Teaching approach:** ${levelContent.teachingTip}
 
 ${
   priorLevels.length > 0
     ? `## Prior Level Skills (also check these, but current level is the priority)
-${priorLevels.map((l) => `- Level ${l.level} (${l.name}): ${l.criteria}`).join("\n")}`
+${priorLevels
+  .map(
+    (l) =>
+      `- Level ${l.level} (${l.name}): ${getLevelContent(l, writingType).criteria}`
+  )
+  .join("\n")}`
     : ""
 }
 

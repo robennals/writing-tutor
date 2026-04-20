@@ -7,7 +7,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { LEVELS, WRITING_TYPES, type WritingType } from "@/lib/levels";
+import {
+  LEVELS,
+  WRITING_TYPES,
+  getLevelContent,
+  type WritingType,
+} from "@/lib/levels";
 import {
   Check,
   Lock,
@@ -60,6 +65,7 @@ export function LevelInfoDialog({
             const isLocked = level.level > currentLevel;
             const isExpanded = expandedLevel === level.level;
             const newTabs = getNewTabsUnlocked(level.level);
+            const content = getLevelContent(level, writingType);
 
             return (
               <div
@@ -163,7 +169,7 @@ export function LevelInfoDialog({
                         What this level is about
                       </p>
                       <p className="text-sm leading-relaxed">
-                        {level.kidExplanation}
+                        {content.kidExplanation}
                       </p>
                     </div>
 
@@ -173,7 +179,7 @@ export function LevelInfoDialog({
                         What passing looks like
                       </p>
                       <p className="text-sm leading-relaxed">
-                        {level.criteria}
+                        {content.criteria}
                       </p>
                     </div>
 
@@ -183,7 +189,7 @@ export function LevelInfoDialog({
                         Techniques you&apos;ll learn
                       </p>
                       <ul className="space-y-1">
-                        {level.techniques.map((t, i) => (
+                        {content.techniques.map((t, i) => (
                           <li
                             key={i}
                             className="text-sm leading-relaxed flex gap-2"
@@ -196,13 +202,13 @@ export function LevelInfoDialog({
                     </div>
 
                     {/* Example */}
-                    {level.example && (
+                    {content.example && (
                       <div>
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
                           Example of passing writing
                         </p>
                         <div className="bg-muted/30 rounded-md p-3 text-sm leading-relaxed italic text-muted-foreground">
-                          &ldquo;{level.example}&rdquo;
+                          &ldquo;{content.example}&rdquo;
                         </div>
                       </div>
                     )}
