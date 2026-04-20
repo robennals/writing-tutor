@@ -18,6 +18,7 @@ vi.mock("@/lib/queries", () => ({
 }));
 vi.mock("@/lib/prompts", () => ({
   buildSystemPrompt: vi.fn(() => "SYSTEM"),
+  buildContextMessage: vi.fn(() => "CONTEXT"),
 }));
 
 // Capture what streamText was called with. Re-export the real `tool` helper
@@ -189,6 +190,73 @@ describe("POST /api/chat", () => {
       .map((p) => p.text)
       .join("");
     expect(assistantText).toContain("Looks great");
+  });
+
+  it("wraps a string-content user turn into a 2-part array with the context block prepended", async () => {
+    // Coverage guard for the string-content branch. AI SDK v6 typically hands
+    // back model messages with array content, but the ModelMessage type also
+    // allows a bare string — we override `convertToModelMessages` here to
+    // exercise that path.
+    const aiMod = await import("ai");
+    const spy = vi
+      .spyOn(aiMod, "convertToModelMessages")
+      .mockImplementation(
+        () =>
+          [{ role: "user", content: "bare string" }] as ReturnType<
+            typeof aiMod.convertToModelMessages
+          >
+      );
+    try {
+      const { POST } = await import("./route");
+      await POST(buildRequest(baseBody()));
+      const modelMessages = streamTextSpy.mock.calls[0][0]
+        .messages as ModelMessage[];
+      const last = modelMessages[modelMessages.length - 1];
+      expect(Array.isArray(last.content)).toBe(true);
+      const parts = last.content as Array<{ type: string; text?: string }>;
+      expect(parts).toEqual([
+        { type: "text", text: "CONTEXT" },
+        { type: "text", text: "bare string" },
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("spreads existing array content when prepending the context block", async () => {
+    // Coverage guard for the array-content branch. Mirror image of the
+    // string test above — existing tests exercise the array branch
+    // implicitly, but make it explicit here so coverage is stable.
+    const aiMod = await import("ai");
+    const spy = vi
+      .spyOn(aiMod, "convertToModelMessages")
+      .mockImplementation(
+        () =>
+          [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "part-one" },
+                { type: "text", text: "part-two" },
+              ],
+            },
+          ] as ReturnType<typeof aiMod.convertToModelMessages>
+      );
+    try {
+      const { POST } = await import("./route");
+      await POST(buildRequest(baseBody()));
+      const modelMessages = streamTextSpy.mock.calls[0][0]
+        .messages as ModelMessage[];
+      const last = modelMessages[modelMessages.length - 1];
+      const parts = last.content as Array<{ type: string; text?: string }>;
+      expect(parts).toEqual([
+        { type: "text", text: "CONTEXT" },
+        { type: "text", text: "part-one" },
+        { type: "text", text: "part-two" },
+      ]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("skips user-save when the last message is not a user message (assistant-only history)", async () => {
