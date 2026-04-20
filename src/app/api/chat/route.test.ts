@@ -18,6 +18,7 @@ vi.mock("@/lib/queries", () => ({
 }));
 vi.mock("@/lib/prompts", () => ({
   buildSystemPrompt: vi.fn(() => "SYSTEM"),
+  buildContextMessage: vi.fn(() => "CONTEXT"),
 }));
 
 // Capture what streamText was called with. Re-export the real `tool` helper
