@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       lastUserMsg.parts
         ?.filter((p: { type: string }) => p.type === "text")
         .map((p: { text: string }) => p.text)
-        .join("") ?? lastUserMsg.content ?? "";
+        .join("") ?? "";
     if (text) {
       await addMessage(essayId, "user", text, currentStep);
     }
@@ -77,23 +77,18 @@ export async function POST(req: NextRequest) {
 
   // Prepend the volatile context block to the student's latest turn so the
   // model reads the CURRENT draft alongside the current user message.
+  // ModelMessage `content` is either a string or an array of parts; normalize
+  // to an array once and splice the context block in front.
   const lastIdx = modelMessages.length - 1;
   const last = modelMessages[lastIdx];
   if (last?.role === "user") {
-    if (typeof last.content === "string") {
-      modelMessages[lastIdx] = {
-        ...last,
-        content: [
-          { type: "text", text: contextBlock },
-          { type: "text", text: last.content },
-        ],
-      };
-    } else if (Array.isArray(last.content)) {
-      modelMessages[lastIdx] = {
-        ...last,
-        content: [{ type: "text", text: contextBlock }, ...last.content],
-      };
-    }
+    const existingParts = Array.isArray(last.content)
+      ? last.content
+      : [{ type: "text" as const, text: last.content }];
+    modelMessages[lastIdx] = {
+      ...last,
+      content: [{ type: "text", text: contextBlock }, ...existingParts],
+    };
   }
 
   // Leading student-name context. Kept out of the system prompt so the system
