@@ -1,9 +1,9 @@
-import { streamText, convertToModelMessages, tool } from "ai";
+import { streamText, convertToModelMessages, tool, type ModelMessage } from "ai";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { initializeDatabase } from "@/lib/db-schema";
 import { addMessage } from "@/lib/queries";
-import { buildSystemPrompt } from "@/lib/prompts";
+import { buildSystemPrompt, buildContextMessage } from "@/lib/prompts";
 import type { WritingType, Tab } from "@/lib/levels";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -46,8 +46,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // STABLE — cached via Anthropic prompt caching. Identical across users at
+  // the same level + writingType, so the first-ever request writes the cache
+  // and every subsequent request across all students reads it.
   const systemPrompt = buildSystemPrompt({
     writingType: writingType as WritingType,
+    currentLevel,
+  });
+
+  // VOLATILE — per-turn state (tab, step, essay draft). Delivered as a user
+  // message prepended to the student's latest turn, so a keystroke in the
+  // draft editor doesn't invalidate the cached system prefix.
+  const contextBlock = buildContextMessage({
     currentLevel,
     currentStep,
     activeTab: activeTab as Tab,
@@ -65,10 +75,30 @@ export async function POST(req: NextRequest) {
     ignoreIncompleteToolCalls: true,
   });
 
-  // Deliver the student's name via a leading user-context message instead of
-  // embedding it in the (cached) system prompt. Keeping the system prompt
-  // identical across users preserves prompt-cache reuse.
-  modelMessages.unshift({
+  // Prepend the volatile context block to the student's latest turn so the
+  // model reads the CURRENT draft alongside the current user message.
+  const lastIdx = modelMessages.length - 1;
+  const last = modelMessages[lastIdx];
+  if (last?.role === "user") {
+    if (typeof last.content === "string") {
+      modelMessages[lastIdx] = {
+        ...last,
+        content: [
+          { type: "text", text: contextBlock },
+          { type: "text", text: last.content },
+        ],
+      };
+    } else if (Array.isArray(last.content)) {
+      modelMessages[lastIdx] = {
+        ...last,
+        content: [{ type: "text", text: contextBlock }, ...last.content],
+      };
+    }
+  }
+
+  // Leading student-name context. Kept out of the system prompt so the system
+  // prefix is byte-identical across users — the cache is shared.
+  const studentNameMsg: ModelMessage = {
     role: "user",
     content: [
       {
@@ -76,12 +106,26 @@ export async function POST(req: NextRequest) {
         text: `(Context: The student's name is ${session.name}. Use this name naturally when greeting or celebrating.)`,
       },
     ],
-  });
+  };
+
+  // System-as-first-message, with cache_control, is how AI SDK v6 exposes
+  // Anthropic prompt caching. A bare `system:` string parameter cannot carry
+  // providerOptions, so the cache would never be written.
+  const finalMessages: ModelMessage[] = [
+    {
+      role: "system",
+      content: systemPrompt,
+      providerOptions: {
+        anthropic: { cacheControl: { type: "ephemeral" } },
+      },
+    },
+    studentNameMsg,
+    ...modelMessages,
+  ];
 
   const result = streamText({
     model: "anthropic/claude-sonnet-4.5",
-    system: systemPrompt,
-    messages: modelMessages,
+    messages: finalMessages,
     tools: {
       markEssayReady: tool({
         description:

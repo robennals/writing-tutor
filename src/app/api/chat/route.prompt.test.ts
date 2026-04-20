@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { NextRequest } from "next/server";
+import type { ModelMessage } from "ai";
 
 // Same collaborator mocks as route.test.ts — EXCEPT we do NOT mock
-// @/lib/prompts, so buildSystemPrompt runs for real. That lets us assert on
-// the actual system prompt string Claude would receive.
+// @/lib/prompts, so buildSystemPrompt / buildContextMessage run for real.
+// That lets us assert on the actual strings Claude would receive.
 
 vi.mock("@/lib/auth", () => ({
   getSession: vi.fn(async () => ({ role: "child", name: "Owen" })),
@@ -41,8 +42,104 @@ beforeEach(() => {
   streamTextSpy.mockClear();
 });
 
-describe("POST /api/chat — system prompt reflects latest edit", () => {
-  it("the real system prompt sent to streamText contains the CURRENT essay content and the 'revise' step instructions", async () => {
+function findSystemMessage(messages: ModelMessage[]): ModelMessage {
+  const sys = messages.find((m) => m.role === "system");
+  if (!sys) throw new Error("no system message");
+  return sys;
+}
+
+function collectText(messages: ModelMessage[], role: "user" | "assistant") {
+  return messages
+    .filter((m) => m.role === role)
+    .flatMap((m) => {
+      if (typeof m.content === "string") return [m.content];
+      if (Array.isArray(m.content)) {
+        return m.content
+          .filter(
+            (p): p is { type: "text"; text: string } =>
+              (p as { type: string }).type === "text"
+          )
+          .map((p) => p.text);
+      }
+      return [];
+    })
+    .join("\n");
+}
+
+describe("POST /api/chat — system prompt is cached; volatile context is in messages", () => {
+  it("the system message carries Anthropic cache_control so the stable prefix is cached", async () => {
+    const { POST } = await import("./route");
+    await POST(
+      jsonPost({
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        ],
+        essayId: 1,
+        essayContent: "x",
+        essayTitle: "t",
+        brainstormNotes: "",
+        outline: "",
+        activeTab: "draft",
+        currentStep: "draft",
+        writingType: "opinion",
+        currentLevel: 1,
+      })
+    );
+
+    const { messages } = streamTextSpy.mock.calls[0][0];
+    const sys = findSystemMessage(messages);
+    expect(sys.providerOptions?.anthropic?.cacheControl).toEqual({
+      type: "ephemeral",
+    });
+  });
+
+  it("the system prompt is byte-stable across users at the same level — prompt-caching invariant", async () => {
+    // If the system prompt embedded volatile state (student name, essay
+    // draft, current step/tab), caches would diverge per-user and prompt
+    // caching would deliver ~no savings. This is the regression guard.
+    const { POST } = await import("./route");
+
+    await POST(
+      jsonPost({
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        ],
+        essayId: 1,
+        essayContent: "<p>Draft A — cat</p>",
+        essayTitle: "Cat",
+        brainstormNotes: "",
+        outline: "",
+        activeTab: "draft",
+        currentStep: "draft",
+        writingType: "opinion",
+        currentLevel: 1,
+      })
+    );
+    const sysA = findSystemMessage(streamTextSpy.mock.calls[0][0].messages);
+
+    streamTextSpy.mockClear();
+    await POST(
+      jsonPost({
+        messages: [
+          { id: "u2", role: "user", parts: [{ type: "text", text: "yo" }] },
+        ],
+        essayId: 2,
+        essayContent: "<p>Draft B — dog, pizza, thunder</p>",
+        essayTitle: "Dog",
+        brainstormNotes: "some notes",
+        outline: "",
+        activeTab: "draft",
+        currentStep: "review",
+        writingType: "opinion",
+        currentLevel: 1,
+      })
+    );
+    const sysB = findSystemMessage(streamTextSpy.mock.calls[0][0].messages);
+
+    expect(sysB.content).toBe(sysA.content);
+  });
+
+  it("the CURRENT essay draft is delivered in the user message array, not the system prompt", async () => {
     const { POST } = await import("./route");
     await POST(
       jsonPost({
@@ -84,30 +181,26 @@ describe("POST /api/chat — system prompt reflects latest edit", () => {
     );
 
     expect(streamTextSpy).toHaveBeenCalledTimes(1);
-    const { system, messages } = streamTextSpy.mock.calls[0][0];
+    const { messages } = streamTextSpy.mock.calls[0][0];
+    const sys = findSystemMessage(messages);
 
-    // The draft's new third sentence must literally appear in the system
-    // prompt — otherwise Claude can't see it.
-    expect(system).toContain("She is snuggly");
+    // Essay content must NOT appear in the cached system prefix — that would
+    // invalidate the cache on every keystroke.
+    expect(sys.content).not.toContain("She is snuggly");
 
-    // The revise step's instruction must be in the prompt so Claude knows to
-    // re-read (and not rely on the previous evaluation).
-    expect(system).toContain("Current Step: REVISE");
+    // It DOES appear somewhere in the user message array — prepended to the
+    // latest turn so Claude reads the current draft alongside the request.
+    const userText = collectText(messages, "user");
+    expect(userText).toContain("She is snuggly");
+    expect(userText).toContain("Current Step:** REVISE");
 
-    // The conversation history passed to Claude preserves the prior
-    // evaluation so Claude has a baseline to compare against.
-    const assistantText = messages
-      .filter((m: { role: string }) => m.role === "assistant")
-      .flatMap((m: { content: unknown }) =>
-        Array.isArray(m.content) ? m.content : []
-      )
-      .filter((p: { type: string }) => p.type === "text")
-      .map((p: { text: string }) => p.text)
-      .join("\n");
+    // Prior-turn assistant text is still passed through so Claude has a
+    // baseline to compare against.
+    const assistantText = collectText(messages, "assistant");
     expect(assistantText).toContain("two complete sentences");
   });
 
-  it("the 'revise' step prompt anchors the AI on the CURRENT draft and forbids 'I can't see your changes' hedges", async () => {
+  it("the 'revise' step guidance lives in the cached system prompt as a reference, and the volatile context names the step — anti-hallucination anchor", async () => {
     const { POST } = await import("./route");
     await POST(
       jsonPost({
@@ -130,17 +223,18 @@ describe("POST /api/chat — system prompt reflects latest edit", () => {
       })
     );
 
-    const { system } = streamTextSpy.mock.calls[0][0];
-    const lower = system.toLowerCase();
+    const { messages } = streamTextSpy.mock.calls[0][0];
+    const sysContent = String(findSystemMessage(messages).content).toLowerCase();
+    const userText = collectText(messages, "user").toLowerCase();
 
-    // The prior failure: AI saw 3 sentences in the system prompt but
-    // replied "I'm not seeing any new words in your draft yet — can you
-    // save it?". These guards force the prompt to anchor Claude on the
-    // CURRENT draft, tell it NOT to say that, and demand it quote a new
-    // phrase so we know it actually read the updated essay.
-    expect(lower).toContain("current");
-    expect(lower).toMatch(/do not rely|don't rely/);
-    expect(lower).toMatch(/never claim you can.?t see|do not say.*save/);
-    expect(lower).toMatch(/quote/);
+    // The revise-step guardrails still live in the system prompt (so they're
+    // cached, not re-shipped every turn).
+    expect(sysContent).toMatch(/do not rely|don't rely/);
+    expect(sysContent).toMatch(/never claim you can.?t see|do not say.*save/);
+    expect(sysContent).toMatch(/quote/);
+
+    // The volatile context pins the current step so Claude picks the right
+    // section of the system-prompt reference.
+    expect(userText).toContain("current step:** revise");
   });
 });

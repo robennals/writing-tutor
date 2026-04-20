@@ -10,7 +10,7 @@ const WRITING_TYPE_CONTEXT: Record<WritingType, string> = {
 };
 
 const TAB_INSTRUCTIONS: Record<Tab, string> = {
-  brainstorm: `The student is on the BRAINSTORM tab. This is for jotting down raw ideas — messy, unordered, no pressure.
+  brainstorm: `BRAINSTORM tab — raw idea dump, messy, unordered, no pressure.
 - If the brainstorm area is empty, help them generate ideas. Ask ONE question at a time:
   - "What do you already know about [topic]?"
   - "Why do you like/care about [topic]?"
@@ -19,13 +19,13 @@ const TAB_INSTRUCTIONS: Record<Tab, string> = {
 - If they have lots of ideas (4+), suggest they try the Outline tab (if available) or go straight to Draft.
 - DO NOT evaluate or judge the ideas here. This is freeform thinking.
 - Keep your messages very short. Two sentences max.`,
-  outline: `The student is on the OUTLINE tab. This is where they plan the ORDER of their essay.
+  outline: `OUTLINE tab — planning the ORDER of the essay.
 - Look at their brainstorm notes. Help them pick the most important idea to start with.
 - Guide them to think about beginning, middle, end (or a simple flow).
 - Ask: "What's the most important thing you want to say first? What comes next?"
 - Keep the outline simple — just a few bullet points or a few numbered steps.
 - If they have an outline, help them expand it or suggest moving to Draft when ready.`,
-  draft: `The student is on the DRAFT tab. This is the actual essay.
+  draft: `DRAFT tab — the actual essay.
 - If they haven't written much yet, encourage them. Reference their brainstorm/outline if helpful.
 - If they ask to check their writing, evaluate against the level criteria (see CURRENT LEVEL section).
 - If they're just writing, don't interrupt. Offer encouragement or ONE tip related to their current level's skill.
@@ -33,11 +33,11 @@ const TAB_INSTRUCTIONS: Record<Tab, string> = {
 };
 
 const STEP_INSTRUCTIONS: Record<string, string> = {
-  topic: `The student just started this essay. Greet them warmly by referring to the topic. Briefly orient them to the tabs they have available (see AVAILABLE TABS section). End by asking if they want to chat about their ideas or jump right into writing.`,
-  brainstorm: `See TAB CONTEXT for brainstorm guidance.`,
-  organize: `See TAB CONTEXT for outline guidance.`,
-  draft: `See TAB CONTEXT for draft guidance.`,
-  review: `The student has asked you to review their DRAFT. Evaluate against the level criteria.
+  topic: `TOPIC step — the student just started this essay. Greet them warmly by referring to the topic. Briefly orient them to the tabs they have available (see AVAILABLE TABS section). End by asking if they want to chat about their ideas or jump right into writing.`,
+  brainstorm: `BRAINSTORM step — see Tab Guide → brainstorm.`,
+  organize: `ORGANIZE step — see Tab Guide → outline.`,
+  draft: `DRAFT step — see Tab Guide → draft.`,
+  review: `REVIEW step — the student has asked you to review their DRAFT. Evaluate against the level criteria.
 
 IMPORTANT RULES:
 1. PRAISE FIRST — find something genuinely good and name it specifically.
@@ -48,7 +48,7 @@ IMPORTANT RULES:
 6. If any word, phrase, abbreviation, or reference in the draft is unclear to you — a possible typo, an unknown brand, a word you don't recognize — ASK the student what they meant before evaluating. Never approve an essay you don't fully understand.
 7. If the essay meets EVERY criterion for the current level and every prior level, call the \`markEssayReady\` tool AND, in the same turn, emit a text message of 2-3 warm sentences that (a) congratulate the student by name, (b) name something specific they did well that matches the level's skill, and (c) tell them they can click "Mark as Complete". **A tool call without an accompanying text message is broken — the student will see a silent approval.** Every \`markEssayReady\` call MUST be paired with text. DO NOT call this tool unless the essay genuinely meets every criterion — being premature undermines the student's learning.
 8. If the essay does NOT yet meet criteria, do NOT call the \`markEssayReady\` tool — just give a gentle suggestion.`,
-  revise: `The student just clicked "I've Made Changes!" after your last suggestion. The **Draft:** section in "Essay Context" (further down in this prompt) contains the CURRENT essay — the student has edited it since your previous message.
+  revise: `REVISE step — the student just clicked "I've Made Changes!" after your last suggestion. The **Draft:** section in the most recent user message contains the CURRENT essay — the student has edited it since your previous message.
 
 **Do not rely on what you said last turn to know what the essay looks like now.** Read the **Draft:** section as if you've never seen this essay before. The CURRENT content is the only thing that matters.
 
@@ -61,28 +61,24 @@ What to do:
 6. If any word or phrase in the current draft is unclear to you, ASK the student what they meant before approving.
 7. If the essay now meets EVERY criterion for this level and every prior level, call the \`markEssayReady\` tool AND, in the same turn, emit a 2-3 sentence text message that congratulates the student by name, names the specific improvement, and tells them they can click "Mark as Complete". **A tool call without text is broken.** Every \`markEssayReady\` call MUST be paired with text. Do NOT call the tool unless every criterion is genuinely met.
 
-**Never claim you can't see the essay or ask the student to "save" it.** The **Draft:** text below IS the current essay, as of this instant. If what you see looks identical to what you evaluated last time, look again — you are almost certainly missing a newly added sentence or word.`,
-  complete: `The essay is complete! Celebrate warmly. Tell the student specifically what they did well, referencing the level's skill. This should feel like a genuine achievement.`,
+**Never claim you can't see the essay or ask the student to "save" it.** The **Draft:** text in the most recent user message IS the current essay, as of this instant. If what you see looks identical to what you evaluated last time, look again — you are almost certainly missing a newly added sentence or word.`,
+  complete: `COMPLETE step — the essay is complete! Celebrate warmly. Tell the student specifically what they did well, referencing the level's skill. This should feel like a genuine achievement.`,
 };
 
+/**
+ * STABLE portion of the prompt — cached via Anthropic `cache_control`.
+ *
+ * Only depends on `writingType` and `currentLevel`. Must NOT embed volatile
+ * state (essay draft, current step/tab, brainstorm notes) — those go in the
+ * context message built separately. Any byte change here invalidates the
+ * entire prefix and forces a cache rewrite on the next turn.
+ */
 export function buildSystemPrompt({
   writingType,
   currentLevel,
-  currentStep,
-  activeTab,
-  essayContent,
-  essayTitle,
-  brainstormNotes,
-  outline,
 }: {
   writingType: WritingType;
   currentLevel: number;
-  currentStep: string;
-  activeTab: Tab;
-  essayContent: string;
-  essayTitle: string;
-  brainstormNotes: string;
-  outline: string;
 }): string {
   const levelDef = getLevel(currentLevel);
   const priorLevels = LEVELS.slice(0, currentLevel - 1);
@@ -133,11 +129,57 @@ ${
     : `The student can switch between these tabs. If they're stuck on one, suggest trying another.`
 }
 
-## Current Tab: ${activeTab.toUpperCase()}
-${TAB_INSTRUCTIONS[activeTab]}
+## Tab Guide
+The current tab is named in each user message. Each tab calls for a different coaching mode:
 
-## Current Step: ${currentStep.toUpperCase()}
-${STEP_INSTRUCTIONS[currentStep] ?? "Help the student with whatever they need."}
+${availableTabs.map((t) => `### ${t.toUpperCase()}\n${TAB_INSTRUCTIONS[t]}`).join("\n\n")}
+
+## Step Guide
+The current step is named in each user message. Each step calls for different behavior:
+
+${Object.entries(STEP_INSTRUCTIONS)
+  .map(([step, body]) => `### ${step.toUpperCase()}\n${body}`)
+  .join("\n\n")}
+
+## Response Format
+- Keep it SHORT (2-3 sentences)
+- Use simple, age-appropriate vocabulary — match the student's apparent reading level
+- Be specific in your praise (not just "good job" — say WHAT is good)
+- If giving a tip, put it in a natural conversational way
+- End with a question or clear next step when appropriate`;
+}
+
+/**
+ * VOLATILE portion of the prompt — delivered as a user message on every turn.
+ *
+ * Lives outside the cached system prefix so per-keystroke changes to the
+ * draft, brainstorm notes, outline, or a tab/step switch don't invalidate
+ * the cache. The student's current tab and step are named here so Claude
+ * binds its behavior to the latest state.
+ */
+export function buildContextMessage({
+  currentLevel,
+  currentStep,
+  activeTab,
+  essayContent,
+  essayTitle,
+  brainstormNotes,
+  outline,
+}: {
+  currentLevel: number;
+  currentStep: string;
+  activeTab: Tab;
+  essayContent: string;
+  essayTitle: string;
+  brainstormNotes: string;
+  outline: string;
+}): string {
+  const levelDef = getLevel(currentLevel);
+  const availableTabs = levelDef.availableTabs;
+
+  return `## Current State
+**Current Tab:** ${activeTab.toUpperCase()} — follow the Tab Guide → ${activeTab.toUpperCase()} section from your system instructions.
+**Current Step:** ${currentStep.toUpperCase()} — follow the Step Guide → ${currentStep.toUpperCase()} section from your system instructions.
 
 ## Essay Context
 **Title:** ${essayTitle || "(not yet chosen)"}
@@ -148,21 +190,12 @@ ${
 ${brainstormNotes || "(empty)"}
 `
     : ""
-}
-${
-  availableTabs.includes("outline")
-    ? `**Outline:**
+}${
+    availableTabs.includes("outline")
+      ? `**Outline:**
 ${outline || "(empty)"}
 `
-    : ""
-}
-**Draft:**
-${essayContent || "(nothing written yet)"}
-
-## Response Format
-- Keep it SHORT (2-3 sentences)
-- Use simple, age-appropriate vocabulary — match the student's apparent reading level
-- Be specific in your praise (not just "good job" — say WHAT is good)
-- If giving a tip, put it in a natural conversational way
-- End with a question or clear next step when appropriate`;
+      : ""
+  }**Draft:**
+${essayContent || "(nothing written yet)"}`;
 }
