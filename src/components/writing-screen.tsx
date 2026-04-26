@@ -246,18 +246,36 @@ export function WritingScreen({
     [essay.id]
   );
 
+  // Synchronous re-entry guards. `isStreaming` only flips true after
+  // sendMessage runs, but these handlers `await` a PATCH first — leaving a
+  // window where a tap on a slow connection can fire the handler twice and
+  // queue duplicate AI turns. The ref blocks re-entry on the very next tap.
+  const checkInFlightRef = useRef(false);
   const handleCheckWriting = useCallback(async () => {
-    await handleStepChange("review");
-    sendMessage({ text: "Please check my writing!" });
+    if (checkInFlightRef.current) return;
+    checkInFlightRef.current = true;
+    try {
+      await handleStepChange("review");
+      sendMessage({ text: "Please check my writing!" });
+    } finally {
+      checkInFlightRef.current = false;
+    }
   }, [handleStepChange, sendMessage]);
 
+  const changesInFlightRef = useRef(false);
   const handleChangesSubmit = useCallback(async () => {
-    // `revise`, not `review`: the revise-step system prompt tells the AI to
-    // re-read the essay and check if the previous suggestion was addressed.
-    // Under the review prompt, the AI treats "I've made changes" as a fresh
-    // check with no baseline and often replies "I can't see your changes".
-    await handleStepChange("revise");
-    sendMessage({ text: "I've made changes! Can you check again?" });
+    if (changesInFlightRef.current) return;
+    changesInFlightRef.current = true;
+    try {
+      // `revise`, not `review`: the revise-step system prompt tells the AI to
+      // re-read the essay and check if the previous suggestion was addressed.
+      // Under the review prompt, the AI treats "I've made changes" as a fresh
+      // check with no baseline and often replies "I can't see your changes".
+      await handleStepChange("revise");
+      sendMessage({ text: "I've made changes! Can you check again?" });
+    } finally {
+      changesInFlightRef.current = false;
+    }
   }, [handleStepChange, sendMessage]);
 
   const handleBrainstormHelp = useCallback(() => {
