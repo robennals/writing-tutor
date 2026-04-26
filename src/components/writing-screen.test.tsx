@@ -301,6 +301,73 @@ describe("WritingScreen — check/revise buttons", () => {
       screen.getByRole("button", { name: /Check My Writing/ })
     ).toBeDisabled();
   });
+
+  it("rapid double-tap on 'Check My Writing!' fires sendMessage exactly once", async () => {
+    // Regression for the duplicate-AI-message bug: the handler awaits a PATCH
+    // before calling sendMessage, so isStreaming hadn't flipped true yet —
+    // tapping again during the slow PATCH used to queue a second sendMessage
+    // and a second AI turn, leaving partial/aborted messages in the chat.
+    let resolvePatch: (() => void) | undefined;
+    fetchSpy.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolvePatch = () =>
+            resolve(
+              new Response(JSON.stringify({ ok: true }), {
+                headers: { "Content-Type": "application/json" },
+              })
+            );
+        })
+    );
+    renderScreen();
+    useChatState.sendMessage.mockClear();
+    const button = screen.getByRole("button", { name: /Check My Writing/ });
+
+    // Two taps before the PATCH has resolved — what a frustrated user does on
+    // a slow mobile connection when nothing visibly happens.
+    await act(async () => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+
+    // Let the PATCH settle and any queued microtasks drain.
+    await act(async () => {
+      resolvePatch?.();
+    });
+
+    expect(useChatState.sendMessage).toHaveBeenCalledTimes(1);
+    expect(useChatState.sendMessage).toHaveBeenCalledWith({
+      text: "Please check my writing!",
+    });
+  });
+
+  it("rapid double-tap on 'I've Made Changes!' fires sendMessage exactly once", async () => {
+    let resolvePatch: (() => void) | undefined;
+    fetchSpy.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolvePatch = () =>
+            resolve(
+              new Response(JSON.stringify({ ok: true }), {
+                headers: { "Content-Type": "application/json" },
+              })
+            );
+        })
+    );
+    renderScreen(makeEssay({ current_step: "review" }));
+    useChatState.sendMessage.mockClear();
+    const button = screen.getByRole("button", { name: /I've Made Changes/ });
+
+    await act(async () => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    await act(async () => {
+      resolvePatch?.();
+    });
+
+    expect(useChatState.sendMessage).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("WritingScreen — Mark as Complete button", () => {
