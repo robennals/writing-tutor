@@ -167,9 +167,10 @@ describe("WritingScreen — initial render", () => {
 
   it("sends an opening greeting when there are no prior messages and we're not in parent view", () => {
     renderScreen();
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({
-      text: "I want to write about: Dogs",
-    });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "I want to write about: Dogs" },
+      expect.objectContaining({ body: expect.any(Object) })
+    );
   });
 
   it("does NOT send a greeting in parent view", () => {
@@ -246,9 +247,12 @@ describe("WritingScreen — check/revise buttons", () => {
       );
     });
     await waitFor(() =>
-      expect(useChatState.sendMessage).toHaveBeenCalledWith({
-        text: "Please check my writing!",
-      })
+      expect(useChatState.sendMessage).toHaveBeenCalledWith(
+        { text: "Please check my writing!" },
+        expect.objectContaining({
+          body: expect.objectContaining({ currentStep: "review" }),
+        })
+      )
     );
     expect(fetchSpy).toHaveBeenCalledWith(
       "/api/essays/1",
@@ -273,9 +277,12 @@ describe("WritingScreen — check/revise buttons", () => {
       );
     });
     await waitFor(() =>
-      expect(useChatState.sendMessage).toHaveBeenCalledWith({
-        text: "I've made changes! Can you check again?",
-      })
+      expect(useChatState.sendMessage).toHaveBeenCalledWith(
+        { text: "I've made changes! Can you check again?" },
+        expect.objectContaining({
+          body: expect.objectContaining({ currentStep: "revise" }),
+        })
+      )
     );
     // The step must transition to `revise` so the AI gets the
     // revision-aware system prompt ("re-read and check if the suggestion
@@ -336,9 +343,12 @@ describe("WritingScreen — check/revise buttons", () => {
     });
 
     expect(useChatState.sendMessage).toHaveBeenCalledTimes(1);
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({
-      text: "Please check my writing!",
-    });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "Please check my writing!" },
+      expect.objectContaining({
+        body: expect.objectContaining({ currentStep: "review" }),
+      })
+    );
   });
 
   it("rapid double-tap on 'I've Made Changes!' fires sendMessage exactly once", async () => {
@@ -524,9 +534,10 @@ describe("WritingScreen — chat input", () => {
     const input = screen.getByPlaceholderText(/Ask me anything/);
     fireEvent.change(input, { target: { value: "what next?" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({
-      text: "what next?",
-    });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "what next?" },
+      expect.objectContaining({ body: expect.any(Object) })
+    );
   });
 
   it("does NOT send on Enter when the input is only whitespace", () => {
@@ -549,7 +560,10 @@ describe("WritingScreen — chat input", () => {
     );
     expect(sendBtn).toBeDefined();
     fireEvent.click(sendBtn!);
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({ text: "hi there" });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "hi there" },
+      expect.objectContaining({ body: expect.any(Object) })
+    );
   });
 
   it("disables the send button when streaming", () => {
@@ -597,9 +611,10 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
     );
     useChatState.sendMessage.mockClear();
     fireEvent.click(screen.getByRole("button", { name: /Help me brainstorm/ }));
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({
-      text: "Can you help me brainstorm some ideas?",
-    });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "Can you help me brainstorm some ideas?" },
+      expect.objectContaining({ body: expect.any(Object) })
+    );
   });
 
   it("typing in the brainstorm textarea triggers a save after the debounce timer", async () => {
@@ -697,9 +712,10 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
     );
     useChatState.sendMessage.mockClear();
     fireEvent.click(screen.getByRole("button", { name: /Help me plan/ }));
-    expect(useChatState.sendMessage).toHaveBeenCalledWith({
-      text: "Can you help me plan my outline?",
-    });
+    expect(useChatState.sendMessage).toHaveBeenCalledWith(
+      { text: "Can you help me plan my outline?" },
+      expect.objectContaining({ body: expect.any(Object) })
+    );
   });
 });
 

@@ -198,16 +198,24 @@ export function buildContextMessage({
 
 ${
   availableTabs.includes("brainstorm")
-    ? `**Brainstorm Notes:**
+    ? `**Brainstorm Notes (between the markers, verbatim):**
+<<<BRAINSTORM>>>
 ${brainstormNotes || "(empty)"}
+<<<END BRAINSTORM>>>
+
 `
     : ""
 }${
     availableTabs.includes("outline")
-      ? `**Outline:**
+      ? `**Outline (between the markers, verbatim):**
+<<<OUTLINE>>>
 ${outline || "(empty)"}
+<<<END OUTLINE>>>
+
 `
       : ""
-  }**Draft:**
-${essayContent || "(nothing written yet)"}`;
+  }**Draft (between the markers, verbatim — anything after <<<END DRAFT>>> is the student's chat message, NOT part of their essay):**
+<<<DRAFT>>>
+${essayContent || "(nothing written yet)"}
+<<<END DRAFT>>>`;
 }

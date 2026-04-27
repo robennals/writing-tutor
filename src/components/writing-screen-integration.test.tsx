@@ -160,8 +160,6 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
     });
 
     // "I've Made Changes!" is visible because current_step is 'review'.
-    // Let React commit the draftContent state update + the bodyStateRef
-    // effect before we click.
     await act(async () => {
       await Promise.resolve();
     });
