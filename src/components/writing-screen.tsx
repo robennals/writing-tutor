@@ -18,6 +18,7 @@ import {
   pickActiveTab,
 } from "@/lib/chat-helpers";
 import type { Essay, Message } from "@/lib/queries";
+import { htmlToPlainText } from "@/lib/utils";
 import { Check, ArrowLeft, Send, Lightbulb, ListOrdered, PenLine } from "lucide-react";
 import { LevelInfoDialog } from "./level-info-dialog";
 
@@ -99,47 +100,15 @@ export function WritingScreen({
     []
   );
 
-  // Keep a ref to the latest tab/step/content so the transport body function
-  // always sends the current state without needing to recreate the transport.
-  const bodyStateRef = useRef({
-    essayId: essay.id,
-    essayContent: draftContent,
-    essayTitle: essay.title,
-    brainstormNotes,
-    outline,
-    activeTab,
-    currentStep,
-    writingType: essay.writing_type,
-    currentLevel,
-  });
-  useEffect(() => {
-    bodyStateRef.current = {
-      essayId: essay.id,
-      essayContent: draftContent,
-      essayTitle: essay.title,
-      brainstormNotes,
-      outline,
-      activeTab,
-      currentStep,
-      writingType: essay.writing_type,
-      currentLevel,
-    };
-  });
-
-  // The transport's body resolver runs at request time, reading the latest ref
-  // value — not at render time. Wrapped in useCallback so useMemo's dep list
-  // doesn't need to touch the ref itself.
-  const resolveBody = useCallback(() => bodyStateRef.current, []);
-
   // Memoize transport so useChat doesn't see a new instance on every render.
+  // The body is NOT set here — it's passed inline at each sendMessage call so
+  // the request always carries the latest committed React state. A
+  // ref-based body (updated in useEffect) is one render behind: useEffect
+  // runs after paint, so a click that fires before the effect has flushed
+  // sends the previous draft and the AI reviews stale content.
   const transport = useMemo(
-    () =>
-      // eslint-disable-next-line react-hooks/refs -- resolveBody is invoked at send time, not render time
-      new DefaultChatTransport({
-        api: "/api/chat",
-        body: resolveBody,
-      }),
-    [resolveBody]
+    () => new DefaultChatTransport({ api: "/api/chat" }),
+    []
   );
 
   const { messages, sendMessage, status, error, regenerate, clearError } =
@@ -148,6 +117,29 @@ export function WritingScreen({
       transport,
       messages: initialSeedMessages,
     });
+
+  // Build the per-request body fresh from current state. Closure capture means
+  // the click handler uses the values from its own render — and React commits
+  // between events, so by the time a click fires, the latest typed character
+  // is already in `draftContent`. Plain function (no useCallback) so React
+  // Compiler can auto-memoize without manual dep tracking.
+  //
+  // Send the draft as plain text, not HTML. Tokens spent on `<p>` tags are
+  // tokens the model isn't spending on character-level checks like
+  // capitalization. `draftText` is empty until the editor's first onUpdate
+  // fires, so fall back to stripping HTML from `draftContent` for the very
+  // first turn (greeting / first Check My Writing before any keystroke).
+  const buildChatBody = () => ({
+    essayId: essay.id,
+    essayContent: draftText.trim() || htmlToPlainText(draftContent),
+    essayTitle: essay.title,
+    brainstormNotes,
+    outline,
+    activeTab,
+    currentStep,
+    writingType: essay.writing_type,
+    currentLevel,
+  });
 
   const isStreaming = status === "streaming" || status === "submitted";
 
@@ -163,9 +155,10 @@ export function WritingScreen({
     if (greetingSentRef.current) return;
     if (initialMessages.length === 0 && messages.length === 0 && !isParentView) {
       greetingSentRef.current = true;
-      sendMessage({
-        text: `I want to write about: ${essay.title}`,
-      });
+      sendMessage(
+        { text: `I want to write about: ${essay.title}` },
+        { body: buildChatBody() }
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -251,19 +244,24 @@ export function WritingScreen({
   // window where a tap on a slow connection can fire the handler twice and
   // queue duplicate AI turns. The ref blocks re-entry on the very next tap.
   const checkInFlightRef = useRef(false);
-  const handleCheckWriting = useCallback(async () => {
+  const handleCheckWriting = async () => {
     if (checkInFlightRef.current) return;
     checkInFlightRef.current = true;
     try {
+      // Build the body BEFORE awaiting any state-mutating PATCH (which calls
+      // setCurrentStep). Reading `currentStep` from the closure after the
+      // await would yield the OLD value anyway, so we lock in the body's
+      // currentStep here based on what we're about to set it to.
+      const body = { ...buildChatBody(), currentStep: "review" };
       await handleStepChange("review");
-      sendMessage({ text: "Please check my writing!" });
+      sendMessage({ text: "Please check my writing!" }, { body });
     } finally {
       checkInFlightRef.current = false;
     }
-  }, [handleStepChange, sendMessage]);
+  };
 
   const changesInFlightRef = useRef(false);
-  const handleChangesSubmit = useCallback(async () => {
+  const handleChangesSubmit = async () => {
     if (changesInFlightRef.current) return;
     changesInFlightRef.current = true;
     try {
@@ -271,20 +269,30 @@ export function WritingScreen({
       // re-read the essay and check if the previous suggestion was addressed.
       // Under the review prompt, the AI treats "I've made changes" as a fresh
       // check with no baseline and often replies "I can't see your changes".
+      const body = { ...buildChatBody(), currentStep: "revise" };
       await handleStepChange("revise");
-      sendMessage({ text: "I've made changes! Can you check again?" });
+      sendMessage(
+        { text: "I've made changes! Can you check again?" },
+        { body }
+      );
     } finally {
       changesInFlightRef.current = false;
     }
-  }, [handleStepChange, sendMessage]);
+  };
 
-  const handleBrainstormHelp = useCallback(() => {
-    sendMessage({ text: "Can you help me brainstorm some ideas?" });
-  }, [sendMessage]);
+  const handleBrainstormHelp = () => {
+    sendMessage(
+      { text: "Can you help me brainstorm some ideas?" },
+      { body: buildChatBody() }
+    );
+  };
 
-  const handleOutlineHelp = useCallback(() => {
-    sendMessage({ text: "Can you help me plan my outline?" });
-  }, [sendMessage]);
+  const handleOutlineHelp = () => {
+    sendMessage(
+      { text: "Can you help me plan my outline?" },
+      { body: buildChatBody() }
+    );
+  };
 
   const completingRef = useRef(false);
   const handleComplete = useCallback(async () => {
@@ -309,14 +317,11 @@ export function WritingScreen({
     }
   }, [essay, router]);
 
-  const handleSendChat = useCallback(
-    (text: string) => {
-      if (!text.trim() || isStreaming) return;
-      sendMessage({ text: text.trim() });
-      setChatInput("");
-    },
-    [isStreaming, sendMessage]
-  );
+  const handleSendChat = (text: string) => {
+    if (!text.trim() || isStreaming) return;
+    sendMessage({ text: text.trim() }, { body: buildChatBody() });
+    setChatInput("");
+  };
 
   const wordCount = draftText.trim().split(/\s+/).filter(Boolean).length;
   const isComplete = essay.status === "completed";

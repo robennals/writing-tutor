@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   ];
 
   const result = streamText({
-    model: "anthropic/claude-sonnet-4.5",
+    model: "anthropic/claude-opus-4.7",
     messages: finalMessages,
     tools: {
       markEssayReady: tool({

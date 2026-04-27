@@ -137,14 +137,14 @@ describe("buildContextMessage (volatile, per-turn portion)", () => {
       ...baseContextArgs,
       currentLevel: 3,
     });
-    expect(level3).not.toContain("**Outline:**");
+    expect(level3).not.toContain("Outline");
 
     const levelWithOutline = buildContextMessage({
       ...baseContextArgs,
       currentLevel: 13,
       outline: "1. intro 2. body 3. end",
     });
-    expect(levelWithOutline).toContain("**Outline:**");
+    expect(levelWithOutline).toContain("Outline");
     expect(levelWithOutline).toContain("1. intro 2. body 3. end");
   });
 
