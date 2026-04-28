@@ -252,6 +252,45 @@ describe("recordAgentCallRequest / recordAgentCallResponse / getAgentCalls", () 
     expect(rows[0].request).toEqual({ ok: true });
   });
 
+  it("recordAgentCallResponse updates the row's response_json", async () => {
+    const {
+      createEssay,
+      recordAgentCallRequest,
+      recordAgentCallResponse,
+      getAgentCalls,
+    } = await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+    const id = await recordAgentCallRequest(essayId, "draft", { ok: true });
+
+    await recordAgentCallResponse(id, {
+      text: "great job!",
+      toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
+    });
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows[0].response).toEqual({
+      text: "great job!",
+      toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
+    });
+  });
+
+  it("recordAgentCallResponse is a no-op when id is null (logging-failure path)", async () => {
+    const { recordAgentCallResponse } = await import("./queries");
+    // Should resolve cleanly without touching the DB or throwing.
+    await expect(recordAgentCallResponse(null, { text: "x" })).resolves.toBeUndefined();
+  });
+
+  it("recordAgentCallResponse swallows JSON.stringify / DB errors", async () => {
+    const { createEssay, recordAgentCallRequest, recordAgentCallResponse } =
+      await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+    const id = await recordAgentCallRequest(essayId, "draft", {});
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    await expect(recordAgentCallResponse(id, cyclic)).resolves.toBeUndefined();
+  });
+
   it("flushAgentCalls deletes all rows and returns the count", async () => {
     const { createEssay, recordAgentCallRequest, flushAgentCalls, getAgentCalls } =
       await import("./queries");
