@@ -194,3 +194,114 @@ describe("recomputeSkillLevel", () => {
     expect(res).toEqual({ leveledUp: false, newLevel: 1 });
   });
 });
+
+describe("recordAgentCallRequest / recordAgentCallResponse / getAgentCalls", () => {
+  it("recordAgentCallRequest inserts a row with the request JSON and returns its id", async () => {
+    const { createEssay, recordAgentCallRequest, getAgentCalls } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+
+    const id = await recordAgentCallRequest(essayId, "draft", {
+      model: "anthropic/claude-opus-4.7",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: ["markEssayReady"],
+    });
+    expect(id).toBeGreaterThan(0);
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(id);
+    expect(rows[0].current_step).toBe("draft");
+    expect(rows[0].request).toEqual({
+      model: "anthropic/claude-opus-4.7",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: ["markEssayReady"],
+    });
+    expect(rows[0].response).toEqual({});
+  });
+
+  it("recordAgentCallRequest swallows DB errors and returns null instead of throwing", async () => {
+    const { recordAgentCallRequest } = await import("./queries");
+    // Force a real failure by passing a payload that can't be JSON.stringified.
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const id = await recordAgentCallRequest(1, "draft", cyclic);
+    expect(id).toBeNull();
+  });
+
+  it("recordAgentCallRequest prunes rows older than 30 days on each insert", async () => {
+    const { createEssay, recordAgentCallRequest, getAgentCalls } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+
+    // Seed an old row by hand.
+    await db.execute({
+      sql: `INSERT INTO agent_calls (essay_id, current_step, request_json, response_json, created_at)
+            VALUES (?, 'draft', '{}', '{}', datetime('now', '-31 days'))`,
+      args: [essayId],
+    });
+
+    expect((await getAgentCalls(essayId)).length).toBe(1);
+
+    await recordAgentCallRequest(essayId, "draft", { ok: true });
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows).toHaveLength(1); // old one pruned, new one kept
+    expect(rows[0].request).toEqual({ ok: true });
+  });
+
+  it("recordAgentCallResponse updates the row's response_json", async () => {
+    const {
+      createEssay,
+      recordAgentCallRequest,
+      recordAgentCallResponse,
+      getAgentCalls,
+    } = await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+    const id = await recordAgentCallRequest(essayId, "draft", { ok: true });
+
+    await recordAgentCallResponse(id, {
+      text: "great job!",
+      toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
+    });
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows[0].response).toEqual({
+      text: "great job!",
+      toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
+    });
+  });
+
+  it("recordAgentCallResponse is a no-op when id is null (logging-failure path)", async () => {
+    const { recordAgentCallResponse } = await import("./queries");
+    // Should resolve cleanly without touching the DB or throwing.
+    await expect(recordAgentCallResponse(null, { text: "x" })).resolves.toBeUndefined();
+  });
+
+  it("recordAgentCallResponse swallows JSON.stringify / DB errors", async () => {
+    const { createEssay, recordAgentCallRequest, recordAgentCallResponse } =
+      await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+    const id = await recordAgentCallRequest(essayId, "draft", {});
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    await expect(recordAgentCallResponse(id, cyclic)).resolves.toBeUndefined();
+  });
+
+  it("flushAgentCalls deletes all rows and returns the count", async () => {
+    const { createEssay, recordAgentCallRequest, flushAgentCalls, getAgentCalls } =
+      await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+
+    await recordAgentCallRequest(essayId, "draft", { a: 1 });
+    await recordAgentCallRequest(essayId, "draft", { a: 2 });
+    expect((await getAgentCalls(essayId)).length).toBe(2);
+
+    const deleted = await flushAgentCalls();
+    expect(deleted).toBe(2);
+    expect((await getAgentCalls(essayId)).length).toBe(0);
+  });
+});
