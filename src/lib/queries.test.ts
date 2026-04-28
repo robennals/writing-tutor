@@ -194,3 +194,61 @@ describe("recomputeSkillLevel", () => {
     expect(res).toEqual({ leveledUp: false, newLevel: 1 });
   });
 });
+
+describe("recordAgentCallRequest / recordAgentCallResponse / getAgentCalls", () => {
+  it("recordAgentCallRequest inserts a row with the request JSON and returns its id", async () => {
+    const { createEssay, recordAgentCallRequest, getAgentCalls } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+
+    const id = await recordAgentCallRequest(essayId, "draft", {
+      model: "anthropic/claude-opus-4.7",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: ["markEssayReady"],
+    });
+    expect(id).toBeGreaterThan(0);
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(id);
+    expect(rows[0].current_step).toBe("draft");
+    expect(rows[0].request).toEqual({
+      model: "anthropic/claude-opus-4.7",
+      messages: [{ role: "user", content: "hi" }],
+      toolNames: ["markEssayReady"],
+    });
+    expect(rows[0].response).toEqual({});
+  });
+
+  it("recordAgentCallRequest swallows DB errors and returns null instead of throwing", async () => {
+    const { recordAgentCallRequest } = await import("./queries");
+    // Force a real failure by passing a payload that can't be JSON.stringified.
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const id = await recordAgentCallRequest(1, "draft", cyclic);
+    expect(id).toBeNull();
+  });
+
+  it("recordAgentCallRequest prunes rows older than 30 days on each insert", async () => {
+    const { createEssay, recordAgentCallRequest, getAgentCalls } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+
+    // Seed an old row by hand.
+    await db.execute({
+      sql: `INSERT INTO agent_calls (essay_id, current_step, request_json, response_json, created_at)
+            VALUES (?, 'draft', '{}', '{}', datetime('now', '-31 days'))`,
+      args: [essayId],
+    });
+
+    expect((await getAgentCalls(essayId)).length).toBe(1);
+
+    await recordAgentCallRequest(essayId, "draft", { ok: true });
+
+    const rows = await getAgentCalls(essayId);
+    expect(rows).toHaveLength(1); // old one pruned, new one kept
+    expect(rows[0].request).toEqual({ ok: true });
+  });
+});
