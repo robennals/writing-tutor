@@ -124,3 +124,50 @@ describe("GET /api/admin/agent-log", () => {
     expect(body[0].request.model).toBe("x");
   });
 });
+
+describe("DELETE /api/admin/agent-log", () => {
+  beforeEach(() => {
+    initializeDatabaseSpy.mockClear();
+    flushAgentCallsSpy.mockClear();
+    vi.resetModules();
+    delete process.env.ADMIN_LOG_KEY;
+  });
+
+  it("returns 503 when ADMIN_LOG_KEY is not configured", async () => {
+    const { DELETE } = await import("./route");
+    const res = await DELETE(
+      buildRequest("http://localhost/api/admin/agent-log", {
+        method: "DELETE",
+        headers: { "x-admin-key": "anything" },
+      })
+    );
+    expect(res.status).toBe(503);
+  });
+
+  it("returns 401 when the key is wrong", async () => {
+    process.env.ADMIN_LOG_KEY = "k";
+    const { DELETE } = await import("./route");
+    const res = await DELETE(
+      buildRequest("http://localhost/api/admin/agent-log", {
+        method: "DELETE",
+        headers: { "x-admin-key": "nope" },
+      })
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("calls flushAgentCalls and returns the deleted count", async () => {
+    process.env.ADMIN_LOG_KEY = "k";
+    flushAgentCallsSpy.mockResolvedValue(5);
+    const { DELETE } = await import("./route");
+    const res = await DELETE(
+      buildRequest("http://localhost/api/admin/agent-log", {
+        method: "DELETE",
+        headers: { "x-admin-key": "k" },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(flushAgentCallsSpy).toHaveBeenCalledTimes(1);
+    expect(await res.json()).toEqual({ deleted: 5 });
+  });
+});

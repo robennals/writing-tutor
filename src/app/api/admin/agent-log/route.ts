@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { initializeDatabase } from "@/lib/db-schema";
-import { getAgentCalls } from "@/lib/queries";
+import { getAgentCalls, flushAgentCalls } from "@/lib/queries";
 
 let dbInitialized = false;
 async function ensureDb() {
@@ -50,4 +50,13 @@ export async function GET(req: NextRequest) {
   await ensureDb();
   const rows = await getAgentCalls(Number(essayIdRaw));
   return NextResponse.json(rows);
+}
+
+export async function DELETE(req: NextRequest) {
+  const authError = authorize(req);
+  if (authError) return authError;
+
+  await ensureDb();
+  const deleted = await flushAgentCalls();
+  return NextResponse.json({ deleted });
 }
