@@ -251,4 +251,18 @@ describe("recordAgentCallRequest / recordAgentCallResponse / getAgentCalls", () 
     expect(rows).toHaveLength(1); // old one pruned, new one kept
     expect(rows[0].request).toEqual({ ok: true });
   });
+
+  it("flushAgentCalls deletes all rows and returns the count", async () => {
+    const { createEssay, recordAgentCallRequest, flushAgentCalls, getAgentCalls } =
+      await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+
+    await recordAgentCallRequest(essayId, "draft", { a: 1 });
+    await recordAgentCallRequest(essayId, "draft", { a: 2 });
+    expect((await getAgentCalls(essayId)).length).toBe(2);
+
+    const deleted = await flushAgentCalls();
+    expect(deleted).toBe(2);
+    expect((await getAgentCalls(essayId)).length).toBe(0);
+  });
 });
