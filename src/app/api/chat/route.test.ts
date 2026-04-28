@@ -273,14 +273,14 @@ describe("POST /api/chat", () => {
     const { POST } = await import("./route");
     await POST(buildRequest(baseBody()));
     expect(recordRequestSpy).toHaveBeenCalledTimes(1);
-    const [essayId, step, payload] = recordRequestSpy.mock.calls[0];
+    const [essayId, step, payload] = recordRequestSpy.mock.calls[0] as unknown as [
+      number,
+      string,
+      { model: string; messages: ModelMessage[]; toolNames: string[] }
+    ];
     expect(essayId).toBe(1);
     expect(step).toBe("draft");
-    const p = payload as {
-      model: string;
-      messages: ModelMessage[];
-      toolNames: string[];
-    };
+    const p = payload;
     expect(p.model).toBe("anthropic/claude-opus-4.7");
     expect(p.messages.length).toBeGreaterThan(0);
     expect(p.toolNames).toContain("markEssayReady");
@@ -298,7 +298,10 @@ describe("POST /api/chat", () => {
     });
 
     expect(recordResponseSpy).toHaveBeenCalledTimes(1);
-    const [id, response] = recordResponseSpy.mock.calls[0];
+    const [id, response] = recordResponseSpy.mock.calls[0] as unknown as [
+      number | null,
+      unknown
+    ];
     expect(id).toBe(42);
     expect(response).toEqual({
       text: "great job!",
