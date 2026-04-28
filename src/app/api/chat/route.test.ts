@@ -5,6 +5,8 @@ const sessionRef: { current: { role: string; name: string } | null } = {
   current: { role: "child", name: "Owen" },
 };
 const addMessageSpy = vi.fn(async () => {});
+const recordRequestSpy = vi.fn(async () => 42 as number | null);
+const recordResponseSpy = vi.fn(async () => {});
 const initializeDatabaseSpy = vi.fn(async () => {});
 
 vi.mock("@/lib/auth", () => ({
@@ -15,6 +17,8 @@ vi.mock("@/lib/db-schema", () => ({
 }));
 vi.mock("@/lib/queries", () => ({
   addMessage: addMessageSpy,
+  recordAgentCallRequest: recordRequestSpy,
+  recordAgentCallResponse: recordResponseSpy,
 }));
 vi.mock("@/lib/prompts", () => ({
   buildSystemPrompt: vi.fn(() => "SYSTEM"),
@@ -24,7 +28,12 @@ vi.mock("@/lib/prompts", () => ({
 // Capture what streamText was called with. Re-export the real `tool` helper
 // and `convertToModelMessages` so the route code keeps working.
 const streamTextSpy = vi.fn();
-let onFinishCallback: ((ev: { text: string }) => Promise<void>) | undefined;
+let onFinishCallback:
+  | ((ev: {
+      text: string;
+      toolCalls?: Array<{ toolName: string; input: unknown }>;
+    }) => Promise<void>)
+  | undefined;
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
   return {
@@ -68,6 +77,9 @@ describe("POST /api/chat", () => {
     streamTextSpy.mockClear();
     addMessageSpy.mockClear();
     initializeDatabaseSpy.mockClear();
+    recordRequestSpy.mockClear();
+    recordRequestSpy.mockResolvedValue(42);
+    recordResponseSpy.mockClear();
     sessionRef.current = { role: "child", name: "Owen" };
     onFinishCallback = undefined;
   });
@@ -255,5 +267,42 @@ describe("POST /api/chat", () => {
     await POST(buildRequest(baseBody()));
     const tools = streamTextSpy.mock.calls[0][0].tools ?? {};
     expect(Object.keys(tools)).toContain("markEssayReady");
+  });
+
+  it("records the outgoing agent call before streaming", async () => {
+    const { POST } = await import("./route");
+    await POST(buildRequest(baseBody()));
+    expect(recordRequestSpy).toHaveBeenCalledTimes(1);
+    const [essayId, step, payload] = recordRequestSpy.mock.calls[0];
+    expect(essayId).toBe(1);
+    expect(step).toBe("draft");
+    const p = payload as {
+      model: string;
+      messages: ModelMessage[];
+      toolNames: string[];
+    };
+    expect(p.model).toBe("anthropic/claude-opus-4.7");
+    expect(p.messages.length).toBeGreaterThan(0);
+    expect(p.toolNames).toContain("markEssayReady");
+  });
+
+  it("records the assembled response (text + toolCalls) inside onFinish", async () => {
+    const { POST } = await import("./route");
+    await POST(buildRequest(baseBody()));
+    expect(onFinishCallback).toBeDefined();
+
+    recordResponseSpy.mockClear();
+    await onFinishCallback!({
+      text: "great job!",
+      toolCalls: [{ toolName: "markEssayReady", input: { reason: "done" } }],
+    });
+
+    expect(recordResponseSpy).toHaveBeenCalledTimes(1);
+    const [id, response] = recordResponseSpy.mock.calls[0];
+    expect(id).toBe(42);
+    expect(response).toEqual({
+      text: "great job!",
+      toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
+    });
   });
 });

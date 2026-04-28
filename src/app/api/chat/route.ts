@@ -2,7 +2,11 @@ import { streamText, convertToModelMessages, tool, type ModelMessage } from "ai"
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { initializeDatabase } from "@/lib/db-schema";
-import { addMessage } from "@/lib/queries";
+import {
+  addMessage,
+  recordAgentCallRequest,
+  recordAgentCallResponse,
+} from "@/lib/queries";
 import { buildSystemPrompt, buildContextMessage } from "@/lib/prompts";
 import type { WritingType, Tab } from "@/lib/levels";
 import { NextRequest, NextResponse } from "next/server";
@@ -118,26 +122,41 @@ export async function POST(req: NextRequest) {
     ...modelMessages,
   ];
 
+  const tools = {
+    markEssayReady: tool({
+      description:
+        "Call this tool when the draft essay meets ALL criteria for the current level and all prior levels. This makes a 'Mark as Complete' button appear for the student. You MUST also emit a text message in the same turn — a tool call with no text renders as a silent approval. Only call it when you are genuinely ready to tell the student that the essay passes — not prematurely.",
+      inputSchema: z.object({
+        reason: z
+          .string()
+          .describe(
+            "A warm, 2-3 sentence congratulation for the student: call them by name, name the specific thing they did well for this level's skill, and invite them to click 'Mark as Complete'. This is the fallback shown if you forget to emit a text message, so write it as if it IS the message."
+          ),
+      }),
+    }),
+  };
+
+  const logId = await recordAgentCallRequest(essayId, currentStep, {
+    model: "anthropic/claude-opus-4.7",
+    messages: finalMessages,
+    toolNames: Object.keys(tools),
+  });
+
   const result = streamText({
     model: "anthropic/claude-opus-4.7",
     messages: finalMessages,
-    tools: {
-      markEssayReady: tool({
-        description:
-          "Call this tool when the draft essay meets ALL criteria for the current level and all prior levels. This makes a 'Mark as Complete' button appear for the student. You MUST also emit a text message in the same turn — a tool call with no text renders as a silent approval. Only call it when you are genuinely ready to tell the student that the essay passes — not prematurely.",
-        inputSchema: z.object({
-          reason: z
-            .string()
-            .describe(
-              "A warm, 2-3 sentence congratulation for the student: call them by name, name the specific thing they did well for this level's skill, and invite them to click 'Mark as Complete'. This is the fallback shown if you forget to emit a text message, so write it as if it IS the message."
-            ),
-        }),
-      }),
-    },
-    onFinish: async ({ text }) => {
+    tools,
+    onFinish: async ({ text, toolCalls }) => {
       if (text) {
         await addMessage(essayId, "assistant", text, currentStep);
       }
+      const calls = (toolCalls ?? []).map(
+        (tc: { toolName: string; input: unknown }) => ({
+          name: tc.toolName,
+          input: tc.input,
+        })
+      );
+      await recordAgentCallResponse(logId, { text: text ?? "", toolCalls: calls });
     },
   });
 
