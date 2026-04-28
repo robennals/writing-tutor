@@ -35,8 +35,9 @@ describe("GET /api/admin/agent-log", () => {
     expect(res.status).toBe(503);
   });
 
-  it("returns 401 when the supplied key is wrong", async () => {
-    process.env.ADMIN_LOG_KEY = "right-key";
+  it("returns 401 when the supplied key has the wrong length", async () => {
+    // Length mismatch is rejected before timingSafeEqual runs.
+    process.env.ADMIN_LOG_KEY = "correct";
     const { GET } = await import("./route");
     const res = await GET(
       buildRequest("http://localhost/api/admin/agent-log?essayId=1", {
@@ -74,7 +75,8 @@ describe("GET /api/admin/agent-log", () => {
     expect(badQuery.status).toBe(400);
   });
 
-  it("returns 401 when a wrong key of the same length is supplied", async () => {
+  it("returns 401 when a wrong key of the same length goes through timingSafeEqual", async () => {
+    // Same-length keys reach timingSafeEqual; this exercises the false branch.
     process.env.ADMIN_LOG_KEY = "right-key";
     const { GET } = await import("./route");
     const res = await GET(
