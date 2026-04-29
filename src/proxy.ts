@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes
+  // Public routes. /api/admin endpoints carry their own header-based key
+  // auth (not session cookies), so the session check below would otherwise
+  // redirect script callers to /login.
   if (
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/admin") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon")
   ) {

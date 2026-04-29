@@ -54,6 +54,22 @@ export async function initializeDatabase() {
       )`,
       args: [],
     },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS agent_calls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        essay_id INTEGER NOT NULL,
+        current_step TEXT NOT NULL,
+        request_json TEXT NOT NULL,
+        response_json TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (essay_id) REFERENCES essays(id)
+      )`,
+      args: [],
+    },
+    {
+      sql: `CREATE INDEX IF NOT EXISTS idx_agent_calls_essay ON agent_calls(essay_id, created_at)`,
+      args: [],
+    },
   ]);
 
   // Migrations: add columns that may not exist on older DBs. SQLite errors

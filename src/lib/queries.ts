@@ -221,3 +221,98 @@ export async function recomputeSkillLevel(
   }
   return { leveledUp: newLevel > oldLevel, newLevel };
 }
+
+export interface AgentCall {
+  id: number;
+  essay_id: number;
+  current_step: string;
+  request: unknown;
+  response: unknown;
+  created_at: string;
+}
+
+const RETENTION_DAYS = 30;
+
+/**
+ * Records the outgoing chat-route payload before streamText runs. Returns the
+ * inserted row id so the caller can pair the response back via
+ * recordAgentCallResponse. Swallows DB / JSON errors — logging must never
+ * break the chat endpoint.
+ */
+export async function recordAgentCallRequest(
+  essayId: number,
+  currentStep: string,
+  request: unknown
+): Promise<number | null> {
+  try {
+    const json = JSON.stringify(request);
+    // Piggyback prune: 30-day retention, no cron needed.
+    await db.execute({
+      sql: `DELETE FROM agent_calls WHERE created_at < datetime('now', ?)`,
+      args: [`-${RETENTION_DAYS} days`],
+    });
+    const result = await db.execute({
+      sql: `INSERT INTO agent_calls (essay_id, current_step, request_json) VALUES (?, ?, ?)`,
+      args: [essayId, currentStep, json],
+    });
+    return Number(result.lastInsertRowid);
+  } catch (err) {
+    console.error("recordAgentCallRequest failed:", err);
+    return null;
+  }
+}
+
+/**
+ * Updates the row created by recordAgentCallRequest with the assembled
+ * assistant output ({ text, toolCalls }). No-op if `id` is null (the request
+ * record failed) or the DB update throws — logging must never break the chat
+ * endpoint.
+ */
+export async function recordAgentCallResponse(
+  id: number | null,
+  response: unknown
+): Promise<void> {
+  if (id == null) return;
+  try {
+    const json = JSON.stringify(response);
+    await db.execute({
+      sql: `UPDATE agent_calls SET response_json = ? WHERE id = ?`,
+      args: [json, id],
+    });
+  } catch (err) {
+    console.error("recordAgentCallResponse failed:", err);
+  }
+}
+
+export async function getAgentCalls(essayId: number): Promise<AgentCall[]> {
+  const result = await db.execute({
+    sql: `SELECT id, essay_id, current_step, request_json, response_json, created_at
+          FROM agent_calls
+          WHERE essay_id = ?
+          ORDER BY created_at ASC, id ASC`,
+    args: [essayId],
+  });
+  return result.rows.map((row) => {
+    const r = row as unknown as {
+      id: number;
+      essay_id: number;
+      current_step: string;
+      request_json: string;
+      response_json: string;
+      created_at: string;
+    };
+    return {
+      id: Number(r.id),
+      essay_id: Number(r.essay_id),
+      current_step: r.current_step,
+      request: r.request_json ? JSON.parse(r.request_json) : null,
+      response: r.response_json ? JSON.parse(r.response_json) : {},
+      created_at: r.created_at,
+    };
+  });
+}
+
+export async function flushAgentCalls(): Promise<number> {
+  const result = await db.execute("DELETE FROM agent_calls");
+  return result.rowsAffected;
+}
