@@ -239,6 +239,26 @@ export function WritingScreen({
     [essay.id]
   );
 
+  // Capture a snapshot of the current draft before the AI reviews it.
+  // Returns the new snapshot id, or null if the request fails (non-fatal).
+  const captureSnapshot = async (): Promise<number | null> => {
+    // Persist exactly what the AI is about to review: same HTML the editor
+    // currently shows, taken before the chat POST so the snapshot id can
+    // ride along on the user message.
+    try {
+      const res = await fetch(`/api/essays/${essay.id}/snapshots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: draftContent }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { id: number };
+      return data.id;
+    } catch {
+      return null;
+    }
+  };
+
   // Synchronous re-entry guards. `isStreaming` only flips true after
   // sendMessage runs, but these handlers `await` a PATCH first — leaving a
   // window where a tap on a slow connection can fire the handler twice and
@@ -252,7 +272,8 @@ export function WritingScreen({
       // setCurrentStep). Reading `currentStep` from the closure after the
       // await would yield the OLD value anyway, so we lock in the body's
       // currentStep here based on what we're about to set it to.
-      const body = { ...buildChatBody(), currentStep: "review" };
+      const snapshotId = await captureSnapshot();
+      const body = { ...buildChatBody(), currentStep: "review", snapshotId };
       await handleStepChange("review");
       sendMessage({ text: "Please check my writing!" }, { body });
     } finally {
@@ -269,7 +290,8 @@ export function WritingScreen({
       // re-read the essay and check if the previous suggestion was addressed.
       // Under the review prompt, the AI treats "I've made changes" as a fresh
       // check with no baseline and often replies "I can't see your changes".
-      const body = { ...buildChatBody(), currentStep: "revise" };
+      const snapshotId = await captureSnapshot();
+      const body = { ...buildChatBody(), currentStep: "revise", snapshotId };
       await handleStepChange("revise");
       sendMessage(
         { text: "I've made changes! Can you check again?" },

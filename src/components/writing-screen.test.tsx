@@ -316,15 +316,25 @@ describe("WritingScreen — check/revise buttons", () => {
     // and a second AI turn, leaving partial/aborted messages in the chat.
     let resolvePatch: (() => void) | undefined;
     fetchSpy.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
+      (url: string) => {
+        // Snapshot POST must resolve immediately so captureSnapshot() doesn't hang.
+        if (typeof url === "string" && url.includes("/snapshots")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ id: 99 }), {
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+        // Other requests (the PATCH step change) hang until resolved.
+        return new Promise<Response>((resolve) => {
           resolvePatch = () =>
             resolve(
               new Response(JSON.stringify({ ok: true }), {
                 headers: { "Content-Type": "application/json" },
               })
             );
-        })
+        });
+      }
     );
     renderScreen();
     useChatState.sendMessage.mockClear();
@@ -354,15 +364,25 @@ describe("WritingScreen — check/revise buttons", () => {
   it("rapid double-tap on 'I've Made Changes!' fires sendMessage exactly once", async () => {
     let resolvePatch: (() => void) | undefined;
     fetchSpy.mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
+      (url: string) => {
+        // Snapshot POST must resolve immediately so captureSnapshot() doesn't hang.
+        if (typeof url === "string" && url.includes("/snapshots")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ id: 99 }), {
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+        }
+        // Other requests (the PATCH step change) hang until resolved.
+        return new Promise<Response>((resolve) => {
           resolvePatch = () =>
             resolve(
               new Response(JSON.stringify({ ok: true }), {
                 headers: { "Content-Type": "application/json" },
               })
             );
-        })
+        });
+      }
     );
     renderScreen(makeEssay({ current_step: "review" }));
     useChatState.sendMessage.mockClear();

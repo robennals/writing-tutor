@@ -362,6 +362,66 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
     expect(body.currentStep).toBe("organize");
   });
 
+  it("clicking 'Check My Writing!' POSTs to /api/essays/:id/snapshots first, then sends snapshotId in the chat body", async () => {
+    const essay = makeEssay({ current_step: "draft", content: "<p>Hello world here</p>" });
+
+    // Extend the beforeEach fetchSpy to also handle the snapshot endpoint.
+    const snapshotCalls: ChatCall[] = [];
+    fetchSpy.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url === `/api/essays/${essay.id}/snapshots`) {
+        snapshotCalls.push({ url, body: JSON.parse(init!.body as string) });
+        return new Response(
+          JSON.stringify({ id: 99, created_at: "2026-05-04T10:00:00Z" }),
+          { status: 200 }
+        );
+      }
+      if (url === "/api/chat") {
+        chatCalls.push({ url, body: JSON.parse(init!.body as string) });
+        return makeEmptyStreamResponse();
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    });
+
+    // Seed one initialMessage so the greeting doesn't fire on mount (which
+    // would leave useChat in "streaming" state and keep the button disabled).
+    render(
+      <WritingScreen
+        essay={essay}
+        initialMessages={[
+          {
+            id: 1,
+            essay_id: essay.id,
+            role: "assistant",
+            content: "Go ahead and write!",
+            step: "draft",
+            created_at: "2026-05-04T00:00:00Z",
+          },
+        ]}
+        currentLevel={1}
+        essaysAtLevel={0}
+        settings={{}}
+        isParentView={false}
+      />
+    );
+
+    // Simulate an editor change so draftText is populated (enabling the button,
+    // which is disabled when wordCount < 3 and draftText starts empty).
+    const editor = screen.getByTestId("essay-editor") as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.change(editor, { target: { value: "Hello world and more" } });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    const checkBtn = screen.getByRole("button", { name: /check my writing/i });
+    await act(async () => { fireEvent.click(checkBtn); });
+
+    await waitFor(() => expect(snapshotCalls.length).toBe(1));
+    await waitFor(() => expect(chatCalls.length).toBe(1));
+
+    expect(snapshotCalls[0].body).toMatchObject({ content: expect.stringContaining("Hello world") });
+    expect(chatCalls[0].body.snapshotId).toBe(99);
+  });
+
   it("chat input sends latest edited content as context", async () => {
     const essay = makeEssay({ current_step: "draft" });
     render(
