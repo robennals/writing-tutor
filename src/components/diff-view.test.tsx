@@ -50,4 +50,16 @@ describe("DiffView", () => {
     const paragraphs = container.querySelectorAll("p");
     expect(paragraphs.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("renders an inserted paragraph as a separate <p>", () => {
+    const { container } = render(
+      <DiffView
+        prev="<p>One</p><p>Two</p>"
+        current="<p>One</p><p>Inserted</p><p>Two</p>"
+      />
+    );
+    expect(container.querySelectorAll("p").length).toBeGreaterThanOrEqual(3);
+    const added = container.querySelector("[data-diff='added']");
+    expect(added?.textContent).toMatch(/Inserted/);
+  });
 });

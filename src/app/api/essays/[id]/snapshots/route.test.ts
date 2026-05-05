@@ -54,6 +54,22 @@ describe("POST /api/essays/[id]/snapshots", () => {
     });
     expect(row.rows[0]).toMatchObject({ essay_id: id, content: "<p>v1</p>" });
   });
+
+  it("ensureDb is cached on subsequent calls in the same module instance", async () => {
+    harness.session.current = { role: "child", name: "Owen" };
+    const id = await seedEssay();
+    const { POST } = await import("./route");
+    await POST(
+      jsonRequest("http://localhost/x", { content: "<p>v1</p>" }),
+      { params: Promise.resolve({ id: String(id) }) }
+    );
+    // Second call in the same module instance — hits the cached `dbInitialized = true` branch.
+    const res = await POST(
+      jsonRequest("http://localhost/x", { content: "<p>v2</p>" }),
+      { params: Promise.resolve({ id: String(id) }) }
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("GET /api/essays/[id]/snapshots", () => {
