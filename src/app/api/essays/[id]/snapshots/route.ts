@@ -24,11 +24,8 @@ export async function POST(
   await ensureDb();
   const { id } = await params;
   const { content } = (await req.json()) as { content: string };
-  const snapshotId = await createSnapshot(Number(id), content);
-  const [snap] = await getSnapshots(Number(id)).then((rows) =>
-    rows.filter((r) => r.id === snapshotId)
-  );
-  return NextResponse.json({ id: snapshotId, created_at: snap.created_at });
+  const { id: snapshotId, created_at } = await createSnapshot(Number(id), content);
+  return NextResponse.json({ id: snapshotId, created_at });
 }
 
 export async function GET(

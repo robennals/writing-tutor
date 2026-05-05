@@ -156,8 +156,9 @@ describe("essay snapshots", () => {
       "./queries"
     );
     const essayId = await createEssay("t", "opinion", 1);
-    const snapId = await createSnapshot(essayId, "<p>v1</p>");
+    const { id: snapId, created_at } = await createSnapshot(essayId, "<p>v1</p>");
     expect(snapId).toBeGreaterThan(0);
+    expect(typeof created_at).toBe("string");
 
     const snaps = await getSnapshots(essayId);
     expect(snaps).toHaveLength(1);
@@ -172,8 +173,8 @@ describe("essay snapshots", () => {
       "./queries"
     );
     const essayId = await createEssay("t", "opinion", 1);
-    const a = await createSnapshot(essayId, "<p>a</p>");
-    const b = await createSnapshot(essayId, "<p>b</p>");
+    const { id: a } = await createSnapshot(essayId, "<p>a</p>");
+    const { id: b } = await createSnapshot(essayId, "<p>b</p>");
     const snaps = await getSnapshots(essayId);
     expect(snaps.map((s) => s.id)).toEqual([a, b]);
   });
@@ -184,7 +185,7 @@ describe("addMessage with snapshot_id", () => {
     const { createEssay, createSnapshot, addMessage, getMessages } =
       await import("./queries");
     const essayId = await createEssay("t", "opinion", 1);
-    const snapId = await createSnapshot(essayId, "<p>v1</p>");
+    const { id: snapId } = await createSnapshot(essayId, "<p>v1</p>");
     await addMessage(essayId, "user", "Please check my writing!", "review", snapId);
     await addMessage(essayId, "assistant", "Looks good!", "review");
 

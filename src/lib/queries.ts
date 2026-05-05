@@ -153,12 +153,13 @@ export async function addMessage(
 export async function createSnapshot(
   essayId: number,
   content: string
-): Promise<number> {
+): Promise<{ id: number; created_at: string }> {
   const result = await db.execute({
-    sql: "INSERT INTO essay_snapshots (essay_id, content) VALUES (?, ?)",
+    sql: "INSERT INTO essay_snapshots (essay_id, content) VALUES (?, ?) RETURNING id, created_at",
     args: [essayId, content],
   });
-  return Number(result.lastInsertRowid);
+  const row = result.rows[0] as unknown as { id: number; created_at: string };
+  return { id: Number(row.id), created_at: row.created_at };
 }
 
 export async function getSnapshots(essayId: number): Promise<EssaySnapshot[]> {

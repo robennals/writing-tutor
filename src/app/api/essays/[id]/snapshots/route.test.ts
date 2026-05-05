@@ -70,8 +70,8 @@ describe("GET /api/essays/[id]/snapshots", () => {
     harness.session.current = { role: "child", name: "Owen" };
     const id = await seedEssay();
     const { createSnapshot } = await import("@/lib/queries");
-    const a = await createSnapshot(id, "<p>a</p>");
-    const b = await createSnapshot(id, "<p>b</p>");
+    const { id: a } = await createSnapshot(id, "<p>a</p>");
+    const { id: b } = await createSnapshot(id, "<p>b</p>");
     const { GET } = await import("./route");
     const res = await GET(
       buildRequest("http://localhost/x", { method: "GET" }),
