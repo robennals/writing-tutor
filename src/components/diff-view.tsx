@@ -1,22 +1,7 @@
 "use client";
 
 import { diffWordsWithSpace } from "diff";
-
-function normalizeWithParagraphs(html: string): string {
-  // Convert HTML into plain text, preserving paragraph breaks as \n\n so the
-  // diff and the rendered output keep their structure.
-  return html
-    .replace(/<\/p>\s*<p[^>]*>/gi, "\n\n")
-    .replace(/<p[^>]*>/gi, "")
-    .replace(/<\/p>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .trim();
-}
+import { htmlToPlainText } from "@/lib/utils";
 
 interface Segment {
   text: string;
@@ -44,7 +29,7 @@ export function DiffView({
   prev: string | null;
   current: string;
 }) {
-  const currentText = normalizeWithParagraphs(current);
+  const currentText = htmlToPlainText(current);
 
   if (prev === null) {
     return (
@@ -57,7 +42,7 @@ export function DiffView({
     );
   }
 
-  const prevText = normalizeWithParagraphs(prev);
+  const prevText = htmlToPlainText(prev);
   if (prevText === currentText) {
     return (
       <div className="px-5 py-4 text-base leading-[1.8] space-y-3">
