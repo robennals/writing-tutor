@@ -17,10 +17,11 @@ import {
   hasMarkEssayReady,
   pickActiveTab,
 } from "@/lib/chat-helpers";
-import type { Essay, Message } from "@/lib/queries";
+import type { Essay, Message, EssaySnapshot } from "@/lib/queries";
 import { htmlToPlainText } from "@/lib/utils";
-import { Check, ArrowLeft, Send, Lightbulb, ListOrdered, PenLine } from "lucide-react";
+import { Check, ArrowLeft, Send, Lightbulb, ListOrdered, PenLine, History, X, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { LevelInfoDialog } from "./level-info-dialog";
+import { DiffView } from "./diff-view";
 
 const TAB_CONFIG: Record<
   Tab,
@@ -79,6 +80,20 @@ export function WritingScreen({
   const [showLevelInfo, setShowLevelInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const [activeSnapshotId, setActiveSnapshotId] = useState<number | null>(null);
+  const [snapshots, setSnapshots] = useState<EssaySnapshot[]>([]);
+  const [messageIdToSnapshotId, setMessageIdToSnapshotId] = useState<
+    Record<string, number>
+  >(() => {
+    const map: Record<string, number> = {};
+    for (const m of initialMessages) {
+      if (m.snapshot_id !== null) map[`db-${m.id}`] = m.snapshot_id;
+    }
+    return map;
+  });
+
+  const pendingSnapshotIdRef = useRef<number | null>(null);
 
   const writingType = WRITING_TYPES.find((t) => t.id === essay.writing_type);
   const levelDef = getLevel(currentLevel);
@@ -147,6 +162,54 @@ export function WritingScreen({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load existing snapshots once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/essays/${essay.id}/snapshots`)
+      .then((r) => (r.ok ? r.json() : { snapshots: [] }))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.snapshots)) {
+          setSnapshots(data.snapshots);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [essay.id]);
+
+  // Escape exits history mode.
+  useEffect(() => {
+    if (activeSnapshotId === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveSnapshotId(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [activeSnapshotId]);
+
+  // When activeSnapshotId changes, scroll the matching chat bubble into view.
+  useEffect(() => {
+    if (activeSnapshotId === null) return;
+    const node = document.querySelector(
+      `[data-snapshot-id='${activeSnapshotId}']`
+    );
+    node?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeSnapshotId]);
+
+  // Bind in-flight check messages to their snapshot ids.
+  // pendingSnapshotIdRef is set by handleCheckWriting/handleChangesSubmit just
+  // before sendMessage; we claim it on the next render after useChat appends.
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user") return;
+    if (messageIdToSnapshotId[last.id]) return;
+    if (pendingSnapshotIdRef.current === null) return;
+    const snapId = pendingSnapshotIdRef.current;
+    pendingSnapshotIdRef.current = null;
+    setMessageIdToSnapshotId((m) => ({ ...m, [last.id]: snapId }));
+  }, [messages, messageIdToSnapshotId]);
 
   // Send initial greeting only once. Guard against React Strict Mode
   // double-mounting in development, which would otherwise send twice.
@@ -252,7 +315,11 @@ export function WritingScreen({
         body: JSON.stringify({ content: draftContent }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { id: number };
+      const data = (await res.json()) as { id: number; created_at: string };
+      setSnapshots((prev) => [
+        ...prev,
+        { id: data.id, essay_id: essay.id, content: draftContent, created_at: data.created_at },
+      ]);
       return data.id;
     } catch {
       return null;
@@ -275,6 +342,7 @@ export function WritingScreen({
       const snapshotId = await captureSnapshot();
       const body = { ...buildChatBody(), currentStep: "review", snapshotId };
       await handleStepChange("review");
+      pendingSnapshotIdRef.current = snapshotId;
       sendMessage({ text: "Please check my writing!" }, { body });
     } finally {
       checkInFlightRef.current = false;
@@ -293,6 +361,7 @@ export function WritingScreen({
       const snapshotId = await captureSnapshot();
       const body = { ...buildChatBody(), currentStep: "revise", snapshotId };
       await handleStepChange("revise");
+      pendingSnapshotIdRef.current = snapshotId;
       sendMessage(
         { text: "I've made changes! Can you check again?" },
         { body }
@@ -397,7 +466,21 @@ export function WritingScreen({
         <div className="flex-1 flex flex-col border-r border-border min-w-0">
           {/* Essay Header */}
           <div className="px-5 py-3 border-b border-border/50 shrink-0">
-            <h1 className="text-lg font-medium">{essay.title}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-medium">{essay.title}</h1>
+              {snapshots.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 gap-1"
+                  onClick={() => setActiveSnapshotId(snapshots[snapshots.length - 1].id)}
+                >
+                  <History className="h-3.5 w-3.5" />
+                  Versions
+                </Button>
+              )}
+            </div>
             <div className="flex gap-2 mt-1.5">
               <Badge variant="secondary" className="text-[11px]">
                 {writingType?.icon} {writingType?.name}
@@ -415,6 +498,7 @@ export function WritingScreen({
             </div>
           </div>
 
+          {activeSnapshotId === null ? (
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
@@ -545,6 +629,22 @@ export function WritingScreen({
               )}
             </TabsContent>
           </Tabs>
+          ) : (
+          <HistoryView
+            snapshots={snapshots}
+            activeSnapshotId={activeSnapshotId}
+            onPrev={() => {
+              const idx = snapshots.findIndex((s) => s.id === activeSnapshotId);
+              if (idx > 0) setActiveSnapshotId(snapshots[idx - 1].id);
+            }}
+            onNext={() => {
+              const idx = snapshots.findIndex((s) => s.id === activeSnapshotId);
+              if (idx >= 0 && idx < snapshots.length - 1)
+                setActiveSnapshotId(snapshots[idx + 1].id);
+            }}
+            onClose={() => setActiveSnapshotId(null)}
+          />
+          )}
         </div>
 
         {/* Right: Tutor Panel */}
@@ -576,8 +676,16 @@ export function WritingScreen({
               // their essay passed — never render a silent approval.
               const displayText =
                 text.trim() || getMarkEssayReadyReason(msg) || text;
+              const snapshotIdForMsg = messageIdToSnapshotId[msg.id] ?? null;
+              const isActive =
+                snapshotIdForMsg !== null && snapshotIdForMsg === activeSnapshotId;
               return (
-                <div key={msg.id}>
+                <div
+                  key={msg.id}
+                  data-snapshot-id={snapshotIdForMsg ?? undefined}
+                  data-active-snapshot={isActive ? "true" : undefined}
+                  className={isActive ? "ring-2 ring-amber-400 rounded-xl" : undefined}
+                >
                   {msg.role === "assistant" ? (
                     <div className="bg-indigo-950/30 rounded-xl p-3.5 space-y-2">
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -592,10 +700,19 @@ export function WritingScreen({
                       )}
                     </div>
                   ) : (
-                    <div className="flex justify-end">
+                    <div className="flex flex-col items-end gap-1">
                       <div className="bg-indigo-600/20 rounded-xl px-3.5 py-2 max-w-[85%]">
                         <p className="text-sm">{text}</p>
                       </div>
+                      {snapshotIdForMsg !== null && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveSnapshotId(snapshotIdForMsg)}
+                          className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                        >
+                          <FileText className="h-3 w-3" /> view this draft
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -681,6 +798,65 @@ export function WritingScreen({
         currentLevel={currentLevel}
         essaysAtLevel={essaysAtLevel}
       />
+    </div>
+  );
+}
+
+function HistoryView({
+  snapshots,
+  activeSnapshotId,
+  onPrev,
+  onNext,
+  onClose,
+}: {
+  snapshots: EssaySnapshot[];
+  activeSnapshotId: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  const idx = snapshots.findIndex((s) => s.id === activeSnapshotId);
+  const current = snapshots[idx];
+  const previous = idx > 0 ? snapshots[idx - 1] : null;
+  const time = current
+    ? new Date(current.created_at).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="mx-5 mt-3 mb-2 px-3 py-2 rounded-lg bg-amber-950/30 border border-amber-600/40 flex items-center justify-between shrink-0">
+        <div className="text-sm text-amber-200">
+          Viewing earlier draft — {time}{" "}
+          <span className="text-xs text-amber-300/70">
+            ({idx + 1} of {snapshots.length})
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={onPrev} disabled={idx <= 0}>
+            <ChevronLeft className="h-4 w-4" />
+            Prev
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onNext}
+            disabled={idx >= snapshots.length - 1}
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4" />
+            Back to live
+          </Button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <DiffView prev={previous?.content ?? null} current={current?.content ?? ""} />
+      </div>
     </div>
   );
 }

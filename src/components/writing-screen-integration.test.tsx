@@ -125,6 +125,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
         content: "Please check my writing!",
         step: "review",
         created_at: "2026-04-18T00:00:00Z",
+        snapshot_id: null,
       },
       {
         id: 2,
@@ -134,6 +135,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
           "I love Buffy! You have two complete sentences. Try adding one more!",
         step: "review",
         created_at: "2026-04-18T00:00:01Z",
+        snapshot_id: null,
       },
     ];
 
@@ -221,6 +223,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             content: "Nice start! Keep writing.",
             step: "draft",
             created_at: "2026-04-18T00:00:00Z",
+            snapshot_id: null,
           },
         ]}
         currentLevel={1}
@@ -276,6 +279,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             content: "What do you already know?",
             step: "brainstorm",
             created_at: "2026-04-18T00:00:00Z",
+            snapshot_id: null,
           },
         ]}
         currentLevel={11}
@@ -328,6 +332,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             content: "What's your main idea?",
             step: "organize",
             created_at: "2026-04-18T00:00:00Z",
+            snapshot_id: null,
           },
         ]}
         currentLevel={13}
@@ -395,6 +400,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             content: "Go ahead and write!",
             step: "draft",
             created_at: "2026-05-04T00:00:00Z",
+            snapshot_id: null,
           },
         ]}
         currentLevel={1}
@@ -435,6 +441,7 @@ describe("WritingScreen — body sent to /api/chat reflects the latest edit", ()
             content: "How's it going?",
             step: "draft",
             created_at: "2026-04-18T00:00:00Z",
+            snapshot_id: null,
           },
         ]}
         currentLevel={1}

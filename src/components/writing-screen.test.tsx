@@ -187,6 +187,7 @@ describe("WritingScreen — initial render", () => {
         content: "Hello!",
         step: "draft",
         created_at: "",
+        snapshot_id: null,
       },
     ];
     renderScreen(makeEssay(), msgs);
@@ -625,6 +626,7 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
           content: "hi",
           step: "brainstorm",
           created_at: "",
+          snapshot_id: null,
         },
       ],
       11
@@ -650,6 +652,7 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
             content: "hi",
             step: "brainstorm",
             created_at: "",
+            snapshot_id: null,
           },
         ],
         11
@@ -689,6 +692,7 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
             content: "hi",
             step: "organize",
             created_at: "",
+            snapshot_id: null,
           },
         ],
         13
@@ -726,6 +730,7 @@ describe("WritingScreen — brainstorm / outline helpers (Essay Builder level)",
           content: "hi",
           step: "organize",
           created_at: "",
+          snapshot_id: null,
         },
       ],
       13
@@ -779,6 +784,7 @@ describe("WritingScreen — level badge & tab switching", () => {
           content: "hi",
           step: "brainstorm",
           created_at: "",
+          snapshot_id: null,
         },
       ],
       11
@@ -851,6 +857,7 @@ describe("WritingScreen — default fallbacks & TTS", () => {
           content: "hi",
           step: "brainstorm",
           created_at: "",
+          snapshot_id: null,
         },
       ],
       13
@@ -879,5 +886,257 @@ describe("WritingScreen — home button", () => {
     renderScreen(makeEssay(), [], 1, {}, true);
     fireEvent.click(screen.getByRole("button", { name: /Home/ }));
     expect(pushSpy).toHaveBeenCalledWith("/parent");
+  });
+});
+
+describe("WritingScreen — history mode", () => {
+  function setupHistory({
+    snapshots,
+    initialMessages,
+    uiMessages,
+  }: {
+    snapshots: Array<{ id: number; essay_id?: number; content: string; created_at: string }>;
+    initialMessages: Message[];
+    uiMessages: Array<{ id: string; role: "user" | "assistant"; text: string }>;
+  }) {
+    fetchSpy.mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.endsWith("/snapshots")) {
+        return new Response(JSON.stringify({ snapshots }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    useChatState.messages = uiMessages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      parts: [{ type: "text", text: m.text }],
+    })) as unknown as UIMessage[];
+
+    return render(
+      <WritingScreen
+        essay={makeEssay()}
+        initialMessages={initialMessages}
+        currentLevel={1}
+        essaysAtLevel={0}
+        settings={{}}
+        isParentView={false}
+      />
+    );
+  }
+
+  it("user messages with snapshot_id render a 'view this draft' link; messages without don't", async () => {
+    setupHistory({
+      snapshots: [{ id: 7, content: "<p>v1</p>", created_at: "2026-05-04T10:00:00Z" }],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "Please check my writing!", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+        { id: 2, essay_id: 1, role: "assistant", content: "Looks good!", step: "review", created_at: "2026-05-04T10:00:01Z", snapshot_id: null },
+      ],
+      uiMessages: [
+        { id: "db-1", role: "user", text: "Please check my writing!" },
+        { id: "db-2", role: "assistant", text: "Looks good!" },
+      ],
+    });
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /view this draft/i })).toHaveLength(1)
+    );
+  });
+
+  it("clicking a snapshot link enters history mode: diff view shown, editor hidden, banner visible", async () => {
+    setupHistory({
+      snapshots: [{ id: 7, content: "<p>The cat sat</p>", created_at: "2026-05-04T10:00:00Z" }],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "Please check my writing!", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+      ],
+      uiMessages: [{ id: "db-1", role: "user", text: "Please check my writing!" }],
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /view this draft/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/Viewing earlier draft/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByLabelText("essay-editor")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to live/i })).toBeInTheDocument();
+  });
+
+  it("clicking ✕ Back to live exits history mode", async () => {
+    setupHistory({
+      snapshots: [{ id: 7, content: "<p>v1</p>", created_at: "2026-05-04T10:00:00Z" }],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "x", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+      ],
+      uiMessages: [{ id: "db-1", role: "user", text: "x" }],
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /view this draft/i }));
+    await screen.findByRole("button", { name: /back to live/i });
+    fireEvent.click(screen.getByRole("button", { name: /back to live/i }));
+    expect(screen.queryByText(/Viewing earlier draft/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("essay-editor")).toBeInTheDocument();
+  });
+
+  it("Escape exits history mode", async () => {
+    setupHistory({
+      snapshots: [{ id: 7, content: "<p>v1</p>", created_at: "2026-05-04T10:00:00Z" }],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "x", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+      ],
+      uiMessages: [{ id: "db-1", role: "user", text: "x" }],
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /view this draft/i }));
+    await screen.findByRole("button", { name: /back to live/i });
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByText(/Viewing earlier draft/i)).not.toBeInTheDocument()
+    );
+  });
+
+  it("Prev/Next walk the snapshot list and update the active highlight", async () => {
+    setupHistory({
+      snapshots: [
+        { id: 7, content: "<p>v1</p>", created_at: "2026-05-04T10:00:00Z" },
+        { id: 8, content: "<p>v2</p>", created_at: "2026-05-04T10:01:00Z" },
+      ],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "first", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+        { id: 2, essay_id: 1, role: "assistant", content: "ok", step: "review", created_at: "2026-05-04T10:00:30Z", snapshot_id: null },
+        { id: 3, essay_id: 1, role: "user", content: "second", step: "revise", created_at: "2026-05-04T10:01:00Z", snapshot_id: 8 },
+      ],
+      uiMessages: [
+        { id: "db-1", role: "user", text: "first" },
+        { id: "db-2", role: "assistant", text: "ok" },
+        { id: "db-3", role: "user", text: "second" },
+      ],
+    });
+    // Open at first snapshot.
+    const links = await screen.findAllByRole("button", { name: /view this draft/i });
+    fireEvent.click(links[0]);
+    await screen.findByRole("button", { name: /next/i });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => {
+      const highlighted = document.querySelector("[data-active-snapshot='true']");
+      expect(highlighted?.textContent).toMatch(/second/);
+    });
+    // Now click Prev to go back to the first snapshot.
+    fireEvent.click(screen.getByRole("button", { name: /prev/i }));
+    await waitFor(() => {
+      const highlighted = document.querySelector("[data-active-snapshot='true']");
+      expect(highlighted?.textContent).toMatch(/first/);
+    });
+  });
+
+  it("Versions button in the header opens the latest snapshot", async () => {
+    setupHistory({
+      snapshots: [
+        { id: 7, content: "<p>v1</p>", created_at: "2026-05-04T10:00:00Z" },
+        { id: 8, content: "<p>v2</p>", created_at: "2026-05-04T10:01:00Z" },
+      ],
+      initialMessages: [
+        { id: 1, essay_id: 1, role: "user", content: "first", step: "review", created_at: "2026-05-04T10:00:00Z", snapshot_id: 7 },
+        { id: 2, essay_id: 1, role: "user", content: "second", step: "revise", created_at: "2026-05-04T10:01:00Z", snapshot_id: 8 },
+      ],
+      uiMessages: [
+        { id: "db-1", role: "user", text: "first" },
+        { id: "db-2", role: "user", text: "second" },
+      ],
+    });
+    const versionsBtn = await screen.findByRole("button", { name: /versions/i });
+    fireEvent.click(versionsBtn);
+    await waitFor(() =>
+      expect(screen.getByText(/Viewing earlier draft/i)).toBeInTheDocument()
+    );
+    const highlighted = document.querySelector("[data-active-snapshot='true']");
+    expect(highlighted?.textContent).toMatch(/second/);
+  });
+
+  it("Versions button is hidden when no snapshots exist", async () => {
+    setupHistory({
+      snapshots: [],
+      initialMessages: [],
+      uiMessages: [],
+    });
+    // Wait for the snapshot fetch to settle so the button (or its absence) is stable.
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /versions/i })).not.toBeInTheDocument();
+  });
+
+  it("still sends message even if snapshot capture throws (non-fatal failure)", async () => {
+    fetchSpy.mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.includes("/snapshots")) {
+        throw new Error("network error");
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    renderScreen();
+    useChatState.sendMessage.mockClear();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Check My Writing/ }));
+    });
+    await waitFor(() =>
+      expect(useChatState.sendMessage).toHaveBeenCalledWith(
+        { text: "Please check my writing!" },
+        expect.objectContaining({
+          body: expect.objectContaining({ currentStep: "review" }),
+        })
+      )
+    );
+  });
+
+  it("in-flight binding: clicking Check My Writing binds the new user message to its snapshot id", async () => {
+    // Set up the fetch to return a snapshot id.
+    fetchSpy.mockImplementation(async (url: string) => {
+      if (typeof url === "string" && url.endsWith("/snapshots")) {
+        return new Response(JSON.stringify({ id: 42, created_at: "2026-05-04T11:00:00Z" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    // Start with no messages.
+    useChatState.messages = [];
+    const { rerender } = render(
+      <WritingScreen
+        essay={makeEssay()}
+        initialMessages={[]}
+        currentLevel={1}
+        essaysAtLevel={0}
+        settings={{}}
+        isParentView={false}
+      />
+    );
+    useChatState.sendMessage.mockClear();
+    // Click Check My Writing — this calls captureSnapshot, sets pendingSnapshotIdRef.current = 42.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Check My Writing/ }));
+    });
+    // Simulate useChat appending the user message (as it would in production).
+    await act(async () => {
+      useChatState.messages = [
+        {
+          id: "new-msg-1",
+          role: "user",
+          parts: [{ type: "text", text: "Please check my writing!" }],
+        } as unknown as UIMessage,
+      ];
+      rerender(
+        <WritingScreen
+          essay={makeEssay()}
+          initialMessages={[]}
+          currentLevel={1}
+          essaysAtLevel={0}
+          settings={{}}
+          isParentView={false}
+        />
+      );
+    });
+    // After the rerender, the effect should have bound the snapshot id to the message.
+    // Verify by checking that the "view this draft" link appears for the new message.
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /view this draft/i })).toHaveLength(1)
+    );
   });
 });
