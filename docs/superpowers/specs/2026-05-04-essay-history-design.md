@@ -74,9 +74,9 @@ A new `<DiffView prev={...} current={...} />` component:
 - Convert each to plain text via `htmlToPlainText`, preserving paragraph breaks as `\n\n`.
 - Run `diffWordsWithSpace(prevText, currentText)` from the `diff` (jsdiff) package.
 - Render each segment:
-  - `added: true` → `<span class="underline decoration-2 decoration-emerald-400 text-emerald-200">`
-  - `removed: true` → `<span class="line-through decoration-2 decoration-rose-400 text-rose-300/70">`
-  - neither → plain text
+  - `added: true` → `<span class="font-bold underline decoration-2 decoration-emerald-400 text-emerald-300">` — bold + green so additions pop.
+  - `removed: true` → `<span class="line-through decoration-2 decoration-rose-400 text-rose-400/50">` — red + faint (50% opacity) so deletions recede while still being visible.
+  - neither → plain text.
 - Preserve paragraph breaks by splitting the rendered output on `\n\n` into `<p>` blocks.
 
 Edge cases:
