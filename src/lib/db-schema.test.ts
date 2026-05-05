@@ -132,3 +132,29 @@ describe("initializeDatabase", () => {
     expect(level).toBe(1);
   });
 });
+
+describe("essay_snapshots table + messages.snapshot_id", () => {
+  it("creates the essay_snapshots table on initialize", async () => {
+    const { initializeDatabase } = await import("./db-schema");
+    await initializeDatabase();
+    const cols = await db.execute("PRAGMA table_info(essay_snapshots)");
+    const names = cols.rows.map((r) => (r as unknown as { name: string }).name);
+    expect(names).toEqual(
+      expect.arrayContaining(["id", "essay_id", "content", "created_at"])
+    );
+  });
+
+  it("adds snapshot_id column to messages on initialize", async () => {
+    const { initializeDatabase } = await import("./db-schema");
+    await initializeDatabase();
+    const cols = await db.execute("PRAGMA table_info(messages)");
+    const names = cols.rows.map((r) => (r as unknown as { name: string }).name);
+    expect(names).toContain("snapshot_id");
+  });
+
+  it("is idempotent — running initialize twice does not throw", async () => {
+    const { initializeDatabase } = await import("./db-schema");
+    await initializeDatabase();
+    await expect(initializeDatabase()).resolves.not.toThrow();
+  });
+});
