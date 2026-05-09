@@ -150,6 +150,52 @@ describe("completeEssayIfInProgress", () => {
   });
 });
 
+describe("essay snapshots", () => {
+  it("createSnapshot inserts a row tied to the essay; getSnapshots returns it", async () => {
+    const { createEssay, createSnapshot, getSnapshots } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+    const { id: snapId, created_at } = await createSnapshot(essayId, "<p>v1</p>");
+    expect(snapId).toBeGreaterThan(0);
+    expect(typeof created_at).toBe("string");
+
+    const snaps = await getSnapshots(essayId);
+    expect(snaps).toHaveLength(1);
+    expect(snaps[0].id).toBe(snapId);
+    expect(snaps[0].essay_id).toBe(essayId);
+    expect(snaps[0].content).toBe("<p>v1</p>");
+    expect(typeof snaps[0].created_at).toBe("string");
+  });
+
+  it("getSnapshots returns rows in chronological order", async () => {
+    const { createEssay, createSnapshot, getSnapshots } = await import(
+      "./queries"
+    );
+    const essayId = await createEssay("t", "opinion", 1);
+    const { id: a } = await createSnapshot(essayId, "<p>a</p>");
+    const { id: b } = await createSnapshot(essayId, "<p>b</p>");
+    const snaps = await getSnapshots(essayId);
+    expect(snaps.map((s) => s.id)).toEqual([a, b]);
+  });
+});
+
+describe("addMessage with snapshot_id", () => {
+  it("persists snapshot_id and getMessages returns it", async () => {
+    const { createEssay, createSnapshot, addMessage, getMessages } =
+      await import("./queries");
+    const essayId = await createEssay("t", "opinion", 1);
+    const { id: snapId } = await createSnapshot(essayId, "<p>v1</p>");
+    await addMessage(essayId, "user", "Please check my writing!", "review", snapId);
+    await addMessage(essayId, "assistant", "Looks good!", "review");
+
+    const msgs = await getMessages(essayId);
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].snapshot_id).toBe(snapId);
+    expect(msgs[1].snapshot_id).toBeNull();
+  });
+});
+
 describe("recomputeSkillLevel", () => {
   it("does not level up when not enough essays have been completed", async () => {
     const { recomputeSkillLevel } = await import("./queries");

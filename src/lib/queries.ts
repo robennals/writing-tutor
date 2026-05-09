@@ -32,6 +32,14 @@ export interface Message {
   content: string;
   step: string;
   created_at: string;
+  snapshot_id: number | null;
+}
+
+export interface EssaySnapshot {
+  id: number;
+  essay_id: number;
+  content: string;
+  created_at: string;
 }
 
 // libsql Row objects have non-serializable methods. Convert to plain objects
@@ -133,12 +141,33 @@ export async function addMessage(
   essayId: number,
   role: string,
   content: string,
-  step: string
+  step: string,
+  snapshotId?: number | null
 ) {
   await db.execute({
-    sql: "INSERT INTO messages (essay_id, role, content, step) VALUES (?, ?, ?, ?)",
-    args: [essayId, role, content, step],
+    sql: "INSERT INTO messages (essay_id, role, content, step, snapshot_id) VALUES (?, ?, ?, ?, ?)",
+    args: [essayId, role, content, step, snapshotId ?? null],
   });
+}
+
+export async function createSnapshot(
+  essayId: number,
+  content: string
+): Promise<{ id: number; created_at: string }> {
+  const result = await db.execute({
+    sql: "INSERT INTO essay_snapshots (essay_id, content) VALUES (?, ?) RETURNING id, created_at",
+    args: [essayId, content],
+  });
+  const row = result.rows[0] as unknown as { id: number; created_at: string };
+  return { id: Number(row.id), created_at: row.created_at };
+}
+
+export async function getSnapshots(essayId: number): Promise<EssaySnapshot[]> {
+  const result = await db.execute({
+    sql: "SELECT * FROM essay_snapshots WHERE essay_id = ? ORDER BY created_at ASC, id ASC",
+    args: [essayId],
+  });
+  return result.rows.map((r) => toPlain<EssaySnapshot>(r));
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
