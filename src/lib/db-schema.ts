@@ -55,6 +55,16 @@ export async function initializeDatabase() {
       args: [],
     },
     {
+      sql: `CREATE TABLE IF NOT EXISTS essay_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        essay_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (essay_id) REFERENCES essays(id)
+      )`,
+      args: [],
+    },
+    {
       sql: `CREATE TABLE IF NOT EXISTS agent_calls (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         essay_id INTEGER NOT NULL,
@@ -78,6 +88,7 @@ export async function initializeDatabase() {
     "ALTER TABLE essays ADD COLUMN brainstorm_notes TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE essays ADD COLUMN outline TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE essays ADD COLUMN active_tab TEXT NOT NULL DEFAULT 'draft'",
+    "ALTER TABLE messages ADD COLUMN snapshot_id INTEGER",
   ];
   for (const sql of migrations) {
     try {

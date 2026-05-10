@@ -110,7 +110,7 @@ describe("POST /api/chat", () => {
   it("saves the user message to the DB before streaming", async () => {
     const { POST } = await import("./route");
     await POST(buildRequest(baseBody()));
-    expect(addMessageSpy).toHaveBeenCalledWith(1, "user", "hello", "draft");
+    expect(addMessageSpy).toHaveBeenCalledWith(1, "user", "hello", "draft", null);
   });
 
   it("does NOT save an empty user message (extracted text is empty)", async () => {
@@ -307,5 +307,33 @@ describe("POST /api/chat", () => {
       text: "great job!",
       toolCalls: [{ name: "markEssayReady", input: { reason: "done" } }],
     });
+  });
+
+  it("when snapshotId is in the body, addMessage receives it as the 5th arg", async () => {
+    const { POST } = await import("./route");
+    await POST(
+      buildRequest(
+        baseBody({
+          messages: [
+            { id: "u1", role: "user", parts: [{ type: "text", text: "Please check my writing!" }] },
+          ],
+          currentStep: "review",
+          snapshotId: 42,
+        })
+      )
+    );
+    expect(addMessageSpy).toHaveBeenCalledWith(
+      1,
+      "user",
+      "Please check my writing!",
+      "review",
+      42
+    );
+  });
+
+  it("user message has null snapshot_id when no snapshotId is sent", async () => {
+    const { POST } = await import("./route");
+    await POST(buildRequest(baseBody()));
+    expect(addMessageSpy).toHaveBeenCalledWith(1, "user", "hello", "draft", null);
   });
 });

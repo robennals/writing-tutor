@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     currentStep,
     writingType,
     currentLevel,
+    snapshotId,
   } = await req.json();
 
   // Save user message to DB. In AI SDK v6, UIMessages use `parts`, not `content`.
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
         .map((p: { text: string }) => p.text)
         .join("") ?? "";
     if (text) {
-      await addMessage(essayId, "user", text, currentStep);
+      await addMessage(essayId, "user", text, currentStep, snapshotId ?? null);
     }
   }
 
