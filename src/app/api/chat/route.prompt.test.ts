@@ -14,6 +14,8 @@ vi.mock("@/lib/db-schema", () => ({
 }));
 vi.mock("@/lib/queries", () => ({
   addMessage: vi.fn(async () => {}),
+  recordAgentCallRequest: vi.fn(async () => null as number | null),
+  recordAgentCallResponse: vi.fn(async () => {}),
 }));
 
 const streamTextSpy = vi.fn();

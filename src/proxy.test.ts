@@ -30,6 +30,7 @@ describe("proxy()", () => {
     const { default: proxy } = await import("./proxy");
     expect(proxy(makeRequest("/login"))).toEqual({ kind: "next" });
     expect(proxy(makeRequest("/api/auth/login"))).toEqual({ kind: "next" });
+    expect(proxy(makeRequest("/api/admin/agent-log"))).toEqual({ kind: "next" });
     expect(proxy(makeRequest("/_next/static/foo.js"))).toEqual({
       kind: "next",
     });

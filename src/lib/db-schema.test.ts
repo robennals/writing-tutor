@@ -31,6 +31,27 @@ describe("initializeDatabase", () => {
     expect(names).toContain("settings");
   });
 
+  it("creates the agent_calls table for agent-call logging", async () => {
+    const { initializeDatabase } = await import("./db-schema");
+    await initializeDatabase();
+
+    const tables = await db.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
+    );
+    const names = tables.rows.map(
+      (r) => (r as unknown as { name: string }).name
+    );
+    expect(names).toContain("agent_calls");
+
+    const indexes = await db.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'agent_calls'"
+    );
+    const indexNames = indexes.rows.map(
+      (r) => (r as unknown as { name: string }).name
+    );
+    expect(indexNames).toContain("idx_agent_calls_essay");
+  });
+
   it("seeds one skill_progress row per writing type", async () => {
     const { initializeDatabase } = await import("./db-schema");
     await initializeDatabase();

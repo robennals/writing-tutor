@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "agent-log": "node --env-file=.env.local --experimental-strip-types scripts/agent-log.ts",
+    "agent-log:flush": "node --env-file=.env.local --experimental-strip-types scripts/agent-log-flush.ts",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
   },
